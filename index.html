@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>governr Intelligence Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0B1F35;
+  --teal: #07CFF5;
+  --teal-dark: #05B8D9;
+  --teal-dim: rgba(7,207,245,0.08);
+  --teal-border: rgba(7,207,245,0.25);
+  --white: #ffffff;
+  --off-white: #F4F7FA;
+  --border: #1e3248;
+  --text: #e6edf3;
+  --muted: #8ba5be;
+  --red: #f85149;
+  --amber: #d29922;
+  --green: #3fb950;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--navy); color: var(--text); font-family: 'Space Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* Header */
+.header { background: #0d1721; border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.wordmark { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--white); }
+.wordmark span { color: var(--teal); }
+.header-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding-left: 16px; border-left: 1px solid var(--border); }
+
+/* API Key section */
+.api-section { background: #0d1721; border-bottom: 1px solid var(--border); padding: 12px 32px; display: flex; align-items: center; gap: 12px; }
+.api-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.api-input { flex: 1; max-width: 420px; background: var(--navy); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); outline: none; transition: border-color 0.15s; }
+.api-input:focus { border-color: var(--teal-border); }
+.api-input::placeholder { color: var(--muted); }
+.api-hint { font-size: 11px; color: var(--muted); }
+
+/* Main */
+.main { flex: 1; padding: 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+/* Run button */
+.run-section { margin-bottom: 32px; }
+.run-btn { background: var(--teal); color: var(--navy); font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 14px 32px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.run-btn:hover:not(:disabled) { background: var(--teal-dark); }
+.run-btn:active:not(:disabled) { transform: scale(0.98); }
+.run-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+.run-hint { font-size: 11px; color: var(--muted); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+/* Progress */
+.progress { display: none; margin-bottom: 32px; }
+.progress.visible { display: block; }
+.progress-bar-track { background: var(--border); border-radius: 2px; height: 3px; margin-bottom: 16px; overflow: hidden; }
+.progress-bar-fill { background: var(--teal); height: 100%; border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+.progress-log { background: #0d1721; border: 1px solid var(--border); border-radius: 6px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.8; max-height: 240px; overflow-y: auto; }
+.log-line { color: var(--muted); }
+.log-line.active { color: var(--teal); }
+.log-line.done { color: var(--green); }
+.log-line.error { color: var(--red); }
+.log-line::before { content: '> '; color: var(--teal-border); }
+
+/* Outputs */
+.outputs { display: none; }
+.outputs.visible { display: block; }
+.outputs-header { margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+.outputs-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.output-tabs { display: flex; gap: 2px; background: #0d1721; border: 1px solid var(--border); border-radius: 4px; padding: 3px; }
+.tab-btn { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border: none; border-radius: 3px; cursor: pointer; background: transparent; color: var(--muted); transition: all 0.15s; }
+.tab-btn.active { background: var(--navy); color: var(--teal); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+.download-btn { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 7px 16px; border: 1px solid var(--teal-border); border-radius: 4px; cursor: pointer; background: var(--teal-dim); color: var(--teal); transition: all 0.15s; }
+.download-btn:hover { background: rgba(7,207,245,0.15); border-color: var(--teal); }
+.outputs-header { gap: 8px; flex-wrap: wrap; }
+.output-panel { display: none; }
+.output-panel.active { display: block; }
+.output-frame-wrap { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: white; }
+.output-frame { width: 100%; border: none; display: block; min-height: 600px; }
+
+/* Error */
+.error-box { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.3); border-radius: 6px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--red); display: none; margin-bottom: 20px; }
+.error-box.visible { display: block; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="wordmark">governr<span>.</span></div>
+      <div class="header-sub">Intelligence Engine</div>
+    </div>
+  </div>
+
+  <div class="api-section">
+    <div class="api-label">API Key</div>
+    <input class="api-input" type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off" />
+    <div class="api-hint">Your key is never stored or sent anywhere except the Anthropic API.</div>
+  </div>
+
+  <div class="main">
+
+    <div class="run-section">
+      <button class="run-btn" id="runBtn" onclick="runDigest()">Run Today's Intelligence</button>
+      <div class="run-hint">Searches all primary sources · Last 24 hours only · Produces all 3 outputs</div>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-log" id="progressLog"></div>
+    </div>
+
+    <div class="outputs" id="outputs">
+      <div class="outputs-header">
+        <div class="outputs-title">Today's Outputs</div>
+        <div class="output-tabs">
+          <button class="tab-btn active" onclick="switchTab('digest')">Internal Digest</button>
+          <button class="tab-btn" onclick="switchTab('sales')">Sales Brief</button>
+          <button class="tab-btn" onclick="switchTab('exec')">Exec Briefing</button>
+        </div>
+        <button class="download-btn" id="share-digest" onclick="shareOutput('digest')">Share Digest</button>
+        <button class="download-btn" id="share-sales" onclick="shareOutput('sales')">Share Sales</button>
+        <button class="download-btn" id="share-exec" onclick="shareOutput('exec')">Share Exec</button>
+      </div>
+      <div class="output-panel active" id="panel-digest">
+        <div class="output-frame-wrap"><iframe class="output-frame" id="frame-digest"></iframe></div>
+      </div>
+      <div class="output-panel" id="panel-sales">
+        <div class="output-frame-wrap"><iframe class="output-frame" id="frame-sales"></iframe></div>
+      </div>
+      <div class="output-panel" id="panel-exec">
+        <div class="output-frame-wrap"><iframe class="output-frame" id="frame-exec"></iframe></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// VERBATIM TEMPLATES — never modified by Claude
+// ─────────────────────────────────────────────
+const TEMPLATE_DIGEST = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>governr AI News Digest -- 26 April 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.6;}
+a{color:#58a6ff;text-decoration:none;}
+a:hover{text-decoration:underline;}
+.header{background:#161b22;border-bottom:1px solid #21262d;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;}
+.brand{color:#b1bac4;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+.header-meta{color:#b1bac4;font-size:12px;}
+.kpi-strip{background:#0d1117;border-bottom:1px solid #21262d;padding:20px 32px;display:flex;gap:40px;flex-wrap:wrap;}
+.kpi-item{display:flex;flex-direction:column;}
+.kpi-value{font-size:26px;font-weight:700;color:#e6edf3;}
+.kpi-label{font-size:11px;color:#b1bac4;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;}
+.window-notice{color:#b1bac4;border-left:2px solid #30363d;background:#161b22;padding:10px 16px;margin:24px 32px 0;font-size:12px;}
+.section{padding:24px 32px;}
+.section-label{color:#8b949e;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:16px;}
+.cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#21262d;border:1px solid #21262d;border-radius:8px;overflow:hidden;}
+.card{background:#161b22;padding:20px;}
+.card h3{color:#e6edf3;font-size:15px;font-weight:600;margin:8px 0 10px;line-height:1.4;}
+.card p{color:#c9d1d9;font-size:13px;line-height:1.65;}
+.card-source{color:#8b949e;font-size:11px;margin-top:12px;}
+.chip-today{background:#1f2d25;color:#3fb950;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;display:inline-block;}
+.chip-yest{background:#161b2e;color:#58a6ff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;display:inline-block;}
+.signal-label{color:#8b949e;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;}
+.signal-risk{color:#f85149;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;}
+.signal-phase2{color:#d29922;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;}
+.signal-phase3{color:#6e76e5;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;}
+.signal-sales{color:#58a6ff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;}
+.signal-validates{color:#3fb950;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;}
+.repo-list{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#21262d;border:1px solid #21262d;border-radius:8px;overflow:hidden;}
+.repo-item{background:#161b22;padding:20px;}
+.repo-name{font-size:14px;font-weight:600;color:#e6edf3;}
+.repo-desc{color:#c9d1d9;font-size:13px;margin-top:6px;line-height:1.55;}
+.repo-stars{color:#8b949e;font-size:12px;margin-top:6px;}
+.repo-why{color:#e6edf3;font-size:12px;font-weight:600;margin-top:8px;padding:6px 10px;background:#0d1117;border-left:2px solid #d29922;border-radius:0 4px 4px 0;}
+.repo-classify{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;display:inline-block;margin-top:10px;text-transform:uppercase;letter-spacing:0.04em;}
+.classify-competes{background:#2d0a09;color:#f85149;border:1px solid #f85149;}
+.classify-watch{background:#2d1f0a;color:#d29922;border:1px solid #d29922;}
+.classify-complements{background:#0a2518;color:#3fb950;border:1px solid #238636;}
+.phase-box{background:#0d1117;color:#b1bac4;border:1px solid #21262d;padding:10px 12px;margin-top:8px;border-radius:4px;font-size:12px;line-height:1.55;}
+.phase-box-label{color:#8b949e;font-size:10px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px;letter-spacing:0.05em;}
+.breach-table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #21262d;border-radius:8px;overflow:hidden;}
+.breach-table th{color:#8b949e;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:12px 16px;text-align:left;border-bottom:1px solid #21262d;background:#0d1117;}
+.breach-table td{color:#c9d1d9;font-size:13px;padding:14px 16px;border-bottom:1px solid #21262d;vertical-align:top;line-height:1.55;}
+.breach-table tr:last-child td{border-bottom:none;}
+.cvss-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;display:inline-block;white-space:nowrap;}
+.cvss-crit{background:#3d0a09;color:#f85149;border:1px solid #f85149;}
+.cvss-high{background:#2d1f0a;color:#d29922;border:1px solid #d29922;}
+.cvss-grey{background:#1c2128;color:#8b949e;border:1px solid #30363d;}
+.breach-wrapper{background:#161b22;border:1px solid #21262d;border-radius:8px;overflow:hidden;overflow-x:auto;}
+.intel-panel{background:#0d1117;border:1px solid #21262d;border-radius:8px;overflow:hidden;margin:0 32px 24px;}
+.intel-block{background:#161b22;border-bottom:1px solid #21262d;padding:24px;}
+.intel-block:last-child{border-bottom:none;}
+.intel-block-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;}
+.intel-item{margin-bottom:16px;}
+.intel-item:last-child{margin-bottom:0;}
+.intel-item-title{color:#e6edf3;font-size:13px;font-weight:600;margin-bottom:4px;}
+.intel-item-body{color:#c9d1d9;font-size:13px;line-height:1.65;}
+.tier{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:0.05em;display:inline-block;margin-bottom:6px;margin-right:4px;}
+.tier-now{border:1px solid #f85149;color:#f85149;background:#1c1010;}
+.tier-aug{border:1px solid #f85149;color:#f85149;background:#1c1010;}
+.tier-q3{border:1px solid #d29922;color:#d29922;background:#1c1a10;}
+.tier-quarter{border:1px solid #d29922;color:#d29922;background:#1c1a10;}
+.tier-build{border:1px solid #6e76e5;color:#6e76e5;background:#121228;}
+.tier-phase3{border:1px solid #6e76e5;color:#6e76e5;background:#121228;}
+.footer{color:#8b949e;font-size:11px;text-align:center;padding:20px 32px;border-top:1px solid #21262d;}
+.kpi-bar{background:#0d1117;border-bottom:1px solid #21262d;padding:20px 32px;display:flex;gap:40px;flex-wrap:wrap;}
+.kpi{display:flex;flex-direction:column;}
+.kpi-value.red{color:#f85149;}
+.kpi-value.amber{color:#d29922;}
+.card-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:2px;}
+.intel-grid{display:flex;flex-direction:column;}
+.repo-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.repo-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;display:inline-block;text-transform:uppercase;letter-spacing:0.04em;}
+.badge-watch{background:#2d1f0a;color:#d29922;border:1px solid #d29922;}
+.badge-competes{background:#2d0a09;color:#f85149;border:1px solid #f85149;}
+.badge-complements{background:#0a2518;color:#3fb950;border:1px solid #238636;}
+.phase-boxes{display:flex;flex-direction:column;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="brand">governr</div>
+    <div style="color:#e6edf3;font-size:18px;font-weight:700;margin-top:4px;">AI News Digest</div>
+  </div>
+  <div class="header-meta" style="text-align:right;">
+    <div style="font-size:15px;font-weight:600;color:#e6edf3;">Sunday, 26 April 2026</div>
+    <div style="margin-top:4px;">Edition #31 &mdash; AI Risk &amp; Governance for Regulated Industries</div>
+  </div>
+</div>
+
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-value">8</span><span class="kpi-label">Stories</span></div>
+  <div class="kpi-item"><span class="kpi-value">4</span><span class="kpi-label">Open Source Repos</span></div>
+  <div class="kpi-item"><span class="kpi-value">4</span><span class="kpi-label">Breach / Intel Alerts</span></div>
+  <div class="kpi-item"><span class="kpi-value red">98</span><span class="kpi-label">Days to EU AI Act Aug Deadline</span></div>
+  <div class="kpi-item"><span class="kpi-value">22</span><span class="kpi-label">Intelligence Signals</span></div>
+</div>
+
+<div class="window-notice">
+  All story cards cover the 24-hour window ending 26 April 2026 at 08:00 BST. Cards dated TODAY are from 25&ndash;26 April; cards dated YEST are from 23&ndash;25 April. Stories outside this window do not appear in the news feed.
+</div>
+
+<div class="section">
+  <div class="section-label">News Stories</div>
+  <div class="cards-grid">
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-today">Today</span>
+        <span class="signal-label signal-phase2">Phase 2 Urgency</span>
+      </div>
+      <h3>RSAC 2026: Five Agent Identity Frameworks Shipped, Three Critical Gaps Left Open</h3>
+      <p>RSAC 2026 saw five vendors announce AI agent identity frameworks, with major commitments from CrowdStrike, SentinelOne, Microsoft, Okta, and CyberArk. But VentureBeat&apos;s analysis reveals every single one verified who the agent was and stopped there. None tracked what the agent did. The three gaps named explicitly: no action-level audit trail, no cross-agent delegation chain, and no explainability of what the agent was permitted to do versus what it actually did. Separately, SC Media reports that 82% of executives believe existing policies protect against unauthorised agent actions while 88% of their organisations had confirmed or suspected AI agent security incidents in the last 12 months. For governr, this is the clearest industry confirmation yet that Phase 2 fills the exact gap the market has just named publicly. The regulated-industry differentiation &mdash; FCA, PRA, and EU AI Act compliance evidence &mdash; is the moat that general-purpose identity vendors cannot match.</p>
+      <div class="card-source">Source: <a href="https://venturebeat.com/security/rsac-2026-agent-identity-frameworks-three-gaps" target="_blank">VentureBeat</a>, <a href="https://www.scworld.com/perspective/rsac-2026-ai-agents-are-joining-the-workforce-so-whos-in-charge" target="_blank">SC Media</a>, 25 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-today">Today</span>
+        <span class="signal-label signal-label">Watch</span>
+      </div>
+      <h3>Hugging Face Launches ml-intern: Open-Source AI Agent That Automates the Full ML Engineering Loop</h3>
+      <p>Hugging Face released ml-intern on 21 April, and it trended to the top of Hacker News and GitHub on 25 April. The open-source agent reads arXiv papers, creates and fixes datasets, runs training jobs, debugs failures, and iterates autonomously &mdash; outperforming Claude Code on scientific reasoning benchmarks by 22 points on GPQA and beating Codex on a healthcare benchmark by 60%. Hugging Face provisioned $1,000 in GPU resources and Anthropic credits per developer to seed adoption. For governr, ml-intern is a Phase 2 case study in miniature: an autonomous agent with access to external compute, model weights, and scientific literature, operating without a human approval loop. As agentic ML engineering tools proliferate, the question for regulated firms is not whether to use them but how to evidence what they did, why, and with what data.</p>
+      <div class="card-source">Source: <a href="https://aitoolly.com/ai-news/article/2026-04-25-hugging-face-launches-ml-intern-an-open-source-ai-agent-for-machine-learning-engineering-tasks" target="_blank">AIToolly</a>, <a href="https://www.marktechpost.com/2026/04/21/hugging-face-releases-ml-intern-an-open-source-ai-agent-that-automates-the-llm-post-training-workflow/" target="_blank">MarkTechPost</a>, 25 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-yest">Yest</span>
+        <span class="signal-label signal-validates">Validates</span>
+      </div>
+      <h3>FinCEN&apos;s 25-Year AML Overhaul Sends Unmistakable Signal: AI Compliance Gets Regulatory Safe Harbour</h3>
+      <p>FinCEN published its most significant AML/CFT rulemaking in roughly 25 years on 7 April, with analysis circulating widely from 23 April in fintech and compliance media. The proposed rule explicitly states that financial institutions deploying AI in compliance operations are likely to be viewed favourably by regulators, and that firms responsibly experimenting with AI innovation will not incur additional enforcement risk. FinCEN&apos;s director confirmed that AI adoption will be considered when deciding enforcement actions. Comments close 9 June 2026; final rule compliance required 12 months after publication. For governr, this is a US-market entry point with a clear buyer message: FinCEN is rewarding AI-in-compliance, but only if you can evidence that the AI is working and auditable. governr is the audit trail that turns regulatory goodwill into demonstrable compliance.</p>
+      <div class="card-source">Source: <a href="https://fintech.global/2026/04/23/fincen-reform-puts-ai-at-the-heart-of-aml-cft-compliance/" target="_blank">FinTech Global</a>, <a href="https://www.fincen.gov/news/news-releases/fincen-proposes-rule-fundamentally-reform-financial-institution-programs" target="_blank">FinCEN.gov</a>, 23 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-yest">Yest</span>
+        <span class="signal-label signal-sales">Sales Signal</span>
+      </div>
+      <h3>AI Adoption in Financial Services Accelerates Globally: 70%+ of Banks Now Running Agentic AI</h3>
+      <p>New data from fintech.global and Crunchbase published 24 April confirms that more than 70% of banking firms are now using agentic AI, with global fintech VC funding reaching $12B across 751 deals in Q1 2026, up 5% year-on-year. Regulatory divergence is identified as the primary friction: US, EU, UK, and Asia-Pacific regulators are taking structurally different approaches, creating a complex patchwork for global compliance functions. JDSupra&apos;s weekly roundup (week ending 24 April) identifies AML, credit decisioning, and KYC as the highest-volume AI deployment use cases in financial services. For governr, the market is not in pilot mode &mdash; it is in deployment mode, and the governance gap is already open. Every firm in that 70% cohort is a Phase 1 prospect today.</p>
+      <div class="card-source">Source: <a href="https://fintech.global/2026/04/24/ai-adoption-in-financial-services-accelerates-globally/" target="_blank">FinTech Global</a>, <a href="https://www.jdsupra.com/legalnews/ai-in-financial-services-in-5-stories-16765/" target="_blank">JDSupra</a>, 24 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-yest">Yest</span>
+        <span class="signal-label signal-phase2">Phase 2 Urgency</span>
+      </div>
+      <h3>The Hacker News: Continuous Observability Is the Only Answer to the AI Agent Authority Gap</h3>
+      <p>The Hacker News published analysis on 24 April arguing that the AI agent authority gap &mdash; the delegation gap between the human identity that commissioned an agent and the machine identity acting on its behalf &mdash; cannot be closed by identity verification alone. The piece makes the case that enterprises need continuous observability over what authority is being delegated, by whom, under what conditions, for what purpose, and across what scope. Token Security&apos;s RSAC 2026 analysis echoes this: the industry verified who the agent is but has not built the infrastructure to know what the agent is allowed to do in real time. For governr, this is the Phase 2 product thesis stated back at us by the security community. The question to answer in every sales conversation is: can you show a regulator the delegation chain from human to agent to action, timestamped and tamper-evident?</p>
+      <div class="card-source">Source: <a href="https://thehackernews.com/2026/04/bridging-ai-agent-authority-gap.html" target="_blank">The Hacker News</a>, <a href="https://www.token.security/blog/rsa-conference-2026-a-defining-moment-for-token-security-and-ai-agent-identity-security" target="_blank">Token Security</a>, 24 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-yest">Yest</span>
+        <span class="signal-label signal-risk">Timing Risk</span>
+      </div>
+      <h3>Nineteen AI Bills Passed Into Law in April 2026 as US State-Level Regulatory Surge Accelerates</h3>
+      <p>Plural Policy confirmed that nineteen AI bills were passed into law during April 2026 across multiple US states, continuing the surge that began after the December 2025 White House executive order directing the administration to challenge state AI laws. The states are pressing ahead regardless, and Colorado remains on course for its June 30 enforcement date after rewriting its statute in response to federal preemption pressure. The White House&apos;s National Policy Framework, released 20 March, has not stopped state legislatures; it has accelerated them. For governr, the regulatory map is fragmenting faster than any single compliance programme can track. This is the Phase 1 AI Atlas use case: a live, updated view of which regulatory obligations apply to which AI deployments in which jurisdictions &mdash; maintained automatically, not manually.</p>
+      <div class="card-source">Source: <a href="https://pluralpolicy.com/blog/the-ai-governance-watch-april-2026-nineteen-new-ai-bills-passed-into-law/" target="_blank">Plural Policy</a>, <a href="https://www.nbcnews.com/politics/politics-news/2026-new-laws-states-elections-midterms-ai-obamacare-aca-paid-leave-rcna247602" target="_blank">NBC News</a>, 24 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-yest">Yest</span>
+        <span class="signal-label signal-phase2">Phase 2 Urgency</span>
+      </div>
+      <h3>n8n Webhooks Weaponised for Persistent Phishing Since October 2025 &mdash; Volume Up 686%</h3>
+      <p>Cisco Talos and The Hacker News published joint analysis on 24 April revealing that n8n webhooks have been weaponised for phishing and device fingerprinting since October 2025. Email volume containing n8n webhook links was 686% higher in March 2026 than in January 2025. Attackers exploit the fact that webhooks mask the true source of data, allowing payloads from untrusted sources to appear to originate from a legitimate, trusted domain. The same week, Cyera Research disclosed CVE-2026-21858, an unauthenticated RCE in n8n itself (see breach tracker). For governr, the compound risk is significant: n8n is a Phase 2-relevant automation platform already in use at many regulated firms as a workflow integration layer. Shadow AI discovery that misses automation platforms is incomplete. The governance surface must extend to workflow tools, not just AI models.</p>
+      <div class="card-source">Source: <a href="https://thehackernews.com/2026/04/n8n-webhooks-abused-since-october-2025.html" target="_blank">The Hacker News</a>, <a href="https://blog.talosintelligence.com/the-n8n-n8mare/" target="_blank">Cisco Talos</a>, 24 April 2026</div>
+    </div>
+
+    <div class="card">
+      <div class="card-meta">
+        <span class="chip-yest">Yest</span>
+        <span class="signal-label signal-phase3">Phase 3 Signal</span>
+      </div>
+      <h3>MIT Technology Review: Enterprise Security Cannot Be Retrofitted to Agents &mdash; It Must Be Built Agent-First</h3>
+      <p>MIT Technology Review published a commissioned analysis on 21 April arguing that agent-first governance is architecturally different from model-first governance. The key claim: agentic systems making consequential decisions require a record not of the model&apos;s output but of the decision context &mdash; what the agent knew at decision time, what permissions it held, what data it accessed, and what standard of care applied. The piece explicitly distinguishes between logging for debugging (what most vendors do) and logging for accountability (what regulated industries require). For governr, this is the clearest editorial framing of the Phase 3 Decision Accountability Record to date. The decision record must be complete enough to be produced to a regulator on demand &mdash; the equivalent of a dealing record under MiFID II, but for AI decisions. The conceptual work is done; the product needs to be scoped this quarter.</p>
+      <div class="card-source">Source: <a href="https://www.technologyreview.com/2026/04/21/1136158/building-agent-first-governance-and-security/" target="_blank">MIT Technology Review</a>, 21 April 2026</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Open Source Tracker</div>
+  <div class="repo-list">
+
+    <div class="repo-item">
+      <div class="repo-header">
+        <a class="repo-name" href="https://github.com/huggingface/ml-intern" target="_blank">huggingface / ml-intern</a>
+        <span class="repo-badge badge-watch">Watch</span>
+      </div>
+      <div class="repo-desc">Open-source AI agent that automates the full LLM post-training loop: reads arXiv papers, fixes and creates datasets, runs training jobs, debugs failures, and iterates without human intervention. Outperforms Claude Code on scientific reasoning benchmarks.</div>
+      <div class="repo-stars">&#9733; ~8.5k stars &nbsp;&bull;&nbsp; Python &nbsp;&bull;&nbsp; MIT licence</div>
+      <div class="repo-why">Launched 21 April 2026 and trended #1 on Hacker News on 25 April; first open-source agent to automate the complete ML engineering lifecycle, prompting immediate debate about governance of fully autonomous model-training agents. (<a href="https://aitoolly.com/ai-news/article/2026-04-25-hugging-face-launches-ml-intern-an-open-source-ai-agent-for-machine-learning-engineering-tasks" target="_blank">AIToolly coverage</a>)</div>
+      <div class="phase-boxes">
+        <div class="phase-box"><span class="phase-box-label">Phase 1</span>ml-intern is an AI system with direct access to external compute, model weights, and scientific literature. Phase 1 AI Atlas must capture the full dependency chain: what models it trains, what data it accesses, and which cloud compute it provisions.</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 2</span>The agent&apos;s autonomous training loop operates without a human approval gate. Phase 2 needs to define the action boundary: what can ml-intern do without human sign-off, and what requires an explicit authorisation step?</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 3</span>When ml-intern produces a fine-tuned model used in a regulated decision, Phase 3 must be able to answer: what data was used to train it, who authorised the training run, and what evaluation standard was applied before deployment?</div>
+      </div>
+    </div>
+
+    <div class="repo-item">
+      <div class="repo-header">
+        <a class="repo-name" href="https://github.com/mem0ai/mem0" target="_blank">mem0ai / mem0</a>
+        <span class="repo-badge badge-watch">Watch</span>
+      </div>
+      <div class="repo-desc">Universal memory layer for AI agents, enabling persistent, context-aware interactions across sessions. AWS selected mem0 as the exclusive memory provider for its new Agent SDK; also natively integrated into CrewAI and Langflow. Backed by Y Combinator with a $24M Series A.</div>
+      <div class="repo-stars">&#9733; ~53.5k stars &nbsp;&bull;&nbsp; Python &nbsp;&bull;&nbsp; Apache 2.0</div>
+      <div class="repo-why">AWS announced mem0 as the exclusive memory provider for its new Agent SDK this month, giving it production-grade enterprise distribution and making it the de facto standard for persistent agent memory at scale. (<a href="https://mem0.ai/series-a" target="_blank">mem0 Series A announcement</a>)</div>
+      <div class="phase-boxes">
+        <div class="phase-box"><span class="phase-box-label">Phase 1</span>mem0 stores agent memory externally, creating a new data dependency that regulated firms must declare: where is agent memory persisted, under whose data processing terms, and in which jurisdiction?</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 2</span>Persistent memory changes the agent permission model: an agent with memory can accumulate context across sessions, potentially acting on stale or unauthorised information. Phase 2 needs session-boundary controls for memory-enabled agents.</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 3</span>Phase 3&apos;s Decision Accountability Record must account for agent memory state at decision time &mdash; what did the agent remember, when was that memory written, and was it accurate? This is the most complex Phase 3 surface mem0 creates.</div>
+      </div>
+    </div>
+
+    <div class="repo-item">
+      <div class="repo-header">
+        <a class="repo-name" href="https://github.com/microsoft/playwright-mcp" target="_blank">microsoft / playwright-mcp</a>
+        <span class="repo-badge badge-watch">Watch</span>
+      </div>
+      <div class="repo-desc">Official Microsoft MCP server giving AI agents structured browser automation via Playwright. Agents can navigate pages, fill forms, extract data, and execute UI workflows. Now the dominant tool for browser-based agent automation across all major agent frameworks.</div>
+      <div class="repo-stars">&#9733; ~12k stars &nbsp;&bull;&nbsp; TypeScript &nbsp;&bull;&nbsp; Apache 2.0</div>
+      <div class="repo-why">RSAC 2026 agent identity discussions and the MCP design vulnerability cluster (CVE-2026-22252 and related) published this week placed playwright-mcp at the centre of security reviews for agent browser automation, accelerating both adoption and scrutiny simultaneously. (<a href="https://venturebeat.com/security/rsac-2026-agent-identity-frameworks-three-gaps" target="_blank">VentureBeat RSAC analysis</a>)</div>
+      <div class="phase-boxes">
+        <div class="phase-box"><span class="phase-box-label">Phase 1</span>playwright-mcp gives agents direct browser control. Phase 1 must register browser automation as an agent capability with associated data access scope: what sites can the agent visit, what credentials can it use, what data can it exfiltrate via the browser?</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 2</span>The MCP design vulnerability cluster means playwright-mcp deployments carry a structural exposure until Anthropic modifies the MCP protocol architecture. Phase 2 must include browser automation sessions in its action-level audit trail.</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 3</span>When an agent makes a consequential decision after browsing external content, Phase 3 must capture what the agent read, from where, and when &mdash; the decision context includes the browsed data, not just the model&apos;s inference.</div>
+      </div>
+    </div>
+
+    <div class="repo-item">
+      <div class="repo-header">
+        <a class="repo-name" href="https://github.com/caramaschiHG/awesome-ai-agents-2026" target="_blank">caramaschiHG / awesome-ai-agents-2026</a>
+        <span class="repo-badge badge-watch">Watch</span>
+      </div>
+      <div class="repo-desc">Comprehensive, monthly-updated curation of AI agent frameworks, tools, and governance resources for 2026. 300+ entries across 20+ categories including agent security, EU AI Act compliance packs, runtime policy enforcement, and agentic workflow tools.</div>
+      <div class="repo-stars">&#9733; ~4.2k stars &nbsp;&bull;&nbsp; Markdown &nbsp;&bull;&nbsp; MIT licence</div>
+      <div class="repo-why">April 2026 monthly update published this week includes a new EU AI Act governance section covering agent deployment restrictions and audit logging requirements, making it the go-to reference for teams assessing their agent compliance posture ahead of August. (<a href="https://github.com/caramaschiHG/awesome-ai-agents-2026" target="_blank">GitHub repo</a>)</div>
+      <div class="phase-boxes">
+        <div class="phase-box"><span class="phase-box-label">Phase 1</span>Serves as a living map of the AI agent vendor landscape governr&apos;s AI Atlas must stay current with. The governance tools section is now the most-cited reference in regulated-industry AI procurement discussions.</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 2</span>The runtime policy enforcement and agent security categories directly list tools competing with Phase 2 capabilities. Monitoring additions to these categories is a weekly competitive intelligence task.</div>
+        <div class="phase-box"><span class="phase-box-label">Phase 3</span>The decision accountability and model provenance sections are nascent but growing. governr should contribute to this curation to establish thought leadership in the emerging Phase 3 tooling space.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Breach &amp; Vulnerability Tracker</div>
+  <div class="breach-wrapper">
+    <table class="breach-table">
+      <thead>
+        <tr>
+          <th>Identifier</th>
+          <th>CVSS</th>
+          <th>System</th>
+          <th>Vector</th>
+          <th>governr Relevance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://www.cyera.com/research/ni8mare-unauthenticated-remote-code-execution-in-n8n-cve-2026-21858" target="_blank"><strong>CVE-2026-21858 &ldquo;Ni8mare&rdquo;</strong></a></td>
+          <td><span class="cvss-badge cvss-crit">CVSS 10.0</span></td>
+          <td>n8n AI Workflow Automation</td>
+          <td>Unauthenticated Remote Code Execution. Attackers can fully take over any internet-facing n8n instance without credentials. Cyera Research disclosed April 2026; Cybersecurity Dive confirmed active scanning within hours of publication.</td>
+          <td>n8n is widely deployed at regulated firms as a workflow integration layer. An unauthenticated CVSS 10 means any exposed instance is effectively owned. Shadow AI discovery that does not scan for n8n is incomplete. Patch immediately; require authentication on all automation endpoints.</td>
+        </tr>
+        <tr>
+          <td><a href="https://thehackernews.com/2026/04/anthropic-mcp-design-vulnerability.html" target="_blank"><strong>CVE-2026-22252 (MCP Design Vulnerability Cluster)</strong></a></td>
+          <td><span class="cvss-badge cvss-high">CVSS 8.1</span></td>
+          <td>LibreChat / MCP-connected AI platforms</td>
+          <td>Design-level RCE cluster across MCP-connected platforms including LibreChat (CVE-2026-22252), WeKnora (CVE-2026-22688), and MCP Inspector (CVE-2025-49596). Anthropic declined to modify the MCP protocol architecture, citing expected behaviour. Vendors issued patches but the root design flaw persists in Anthropic&apos;s reference implementation.</td>
+          <td>Every MCP deployment is indefinitely exposed to the design flaw until Anthropic revises the protocol. governer&apos;s Phase 2 must establish a clear position: what MCP-connected actions can be detected at the action-log level, and what requires network-layer inspection? This is a standing exposure, not a patchable CVE.</td>
+        </tr>
+        <tr>
+          <td><a href="https://thehackernews.com/2026/04/flowise-ai-agent-builder-under-active.html" target="_blank"><strong>CVE-2025-59528</strong></a></td>
+          <td><span class="cvss-badge cvss-crit">CVSS 10.0</span></td>
+          <td>Flowise AI Agent Builder</td>
+          <td>Code injection vulnerability enabling unauthenticated remote code execution. 12,000+ internet-facing Flowise instances identified as exposed. Active exploitation confirmed by The Hacker News. Attack surface includes any regulated firm that deployed Flowise for agent prototyping or production orchestration.</td>
+          <td>Two CVSS 10.0 vulnerabilities in a single week across AI infrastructure (n8n + Flowise) indicates the agent tooling layer is now a primary attack surface. Phase 1 inventory must capture every Flowise deployment. Phase 2 anomaly detection on agent traffic would flag the exfiltration patterns associated with active exploitation.</td>
+        </tr>
+        <tr>
+          <td><a href="https://www.esecurityplanet.com/weekly-roundup/data-breaches-ai-expansion-and-cloud-security-define-this-weeks-cyber-landscape-in-april-2026/" target="_blank"><strong>AI-Enabled Attack Volume Surge Q1 2026</strong></a></td>
+          <td><span class="cvss-badge cvss-grey">INTEL</span></td>
+          <td>Cross-sector AI Attack Acceleration</td>
+          <td>eSecurity Planet and Foresiet confirm AI-enabled attacks rose 89% year-on-year in Q1 2026. Prioritised critical risk grew by 400% despite raw alert volume growing only 52%, creating a velocity gap where high-impact vulnerabilities scale faster than remediation workflows. One confirmed case: an AI agent compromised 600+ firewalls across 55 countries without human operator involvement.</td>
+          <td>The velocity gap is a direct argument for automated governance tooling. Human-reviewed security operations cannot absorb 400% critical risk growth. governr&apos;s Phase 2 automated detection and Phase 3 decision accountability logging operate at machine speed &mdash; this is the pitch to every CISO who attended RSAC this week.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="intel-panel">
+
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#3fb950;">1 &mdash; What Today Validates</div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">RSAC names the Phase 2 gap in precise language</div>
+      <div class="intel-item-body">Five identity frameworks shipped at the world&apos;s largest security conference, and every analyst covering the event named the same missing capability: action-level audit trail. governr Phase 2 is the product that fills this gap. The market has now named it publicly; the opportunity window to own &ldquo;action-level AI agent audit trail for regulated industries&rdquo; is open right now.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">FinCEN creates a US compliance sales motion</div>
+      <div class="intel-item-body">The most significant US AML reform in 25 years explicitly rewards AI-in-compliance adoption &mdash; but only if the firm can evidence the AI&apos;s effectiveness. This is a direct product-market fit signal. US banks deploying AI in AML are a new and well-funded buyer cohort for governr&apos;s Phase 1 audit and Phase 2 logging capabilities.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">70%+ agentic AI deployment rate confirms the market is not in pilot mode</div>
+      <div class="intel-item-body">The addressable market for governr is already in production. Every firm in that 70% cohort is a Phase 1 prospect today, and the 88% incident rate from RSAC confirms that the governance gap is actively costing them. The window for outbound prospecting is not &ldquo;when the market is ready&rdquo; &mdash; the market is already there.</div>
+    </div>
+  </div>
+
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#d29922;">2 &mdash; What the Phases Need to Know</div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-quarter">Phase 2</span> RSAC confirms: identity is solved, action audit is not</div>
+      <div class="intel-item-body">Every major identity vendor is now doing agent identity. None of them do action-level audit. governr&apos;s Phase 2 competitive positioning must shift from &ldquo;we govern AI agents&rdquo; to &ldquo;we produce the tamper-evident action record that identity vendors cannot.&rdquo; The RSAC gap analysis is a live sales asset &mdash; send the VentureBeat article to every CISO contact this week with a one-line note.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-quarter">Phase 2</span> Automation platform scope must expand beyond AI models</div>
+      <div class="intel-item-body">The n8n story &mdash; a 686% phishing volume increase using legitimate automation infrastructure &mdash; confirms that the Phase 2 governance surface must include workflow automation platforms (n8n, Zapier, Make) as first-class AI-adjacent risks. Shadow AI discovery that stops at model deployments misses the automation layer. This is a scope decision that needs to be made before August.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-phase3">Phase 3</span> MIT Tech Review names the Decision Accountability Record requirement</div>
+      <div class="intel-item-body">The MIT Technology Review piece argues that agent-first governance requires a complete decision context record: what the agent knew, what permissions it held, what data it accessed, and what standard of care applied. This is the Phase 3 Decision Accountability Record described precisely and independently by a trusted editorial voice. Clip and cite in the Phase 3 product brief.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-phase3">Phase 3</span> mem0 makes agent memory state a Phase 3 audit requirement</div>
+      <div class="intel-item-body">AWS selecting mem0 as its exclusive agent memory layer means persistent agent memory will be production-scale in enterprise environments by Q3 2026. Phase 3&apos;s Decision Accountability Record must capture memory state at decision time: what the agent remembered, when that memory was written, and whether it was accurate at the point of decision. This is a new data surface that existing logging tools do not address.</div>
+    </div>
+  </div>
+
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#f85149;">3 &mdash; Where to Be Honest With Yourself</div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">Two CVSS 10.0 vulnerabilities in one week in AI tooling we cannot yet detect</div>
+      <div class="intel-item-body">Flowise (CVE-2025-59528) and n8n (CVE-2026-21858) are both CVSS 10.0. If any governer customer runs either platform and it is not in the Phase 1 inventory, they have an active critical exposure that governr has not surfaced. The honest question: does Phase 1 discovery currently enumerate n8n and Flowise deployments? If not, that is the gap to close before these become customer incidents.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">The MCP design flaw is a standing exposure governr cannot fully resolve</div>
+      <div class="intel-item-body">Anthropic declined to modify the MCP protocol architecture. CVE-2026-22252 and the broader cluster are not patchable at the application layer. Any organisation running MCP-connected tools has an indefinite structural exposure. governr must be honest about what Phase 2 can detect (action-level anomalies in MCP traffic) versus what requires network-layer controls outside governr&apos;s scope.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">State regulatory fragmentation is accelerating faster than Phase 1 can track manually</div>
+      <div class="intel-item-body">Nineteen AI bills in April alone. The Phase 1 regulatory mapping function needs automated ingestion from legislative tracking services (Plural Policy, MultiState, Bloomberg Law) to stay current. Manual curation of the regulatory landscape is already falling behind the pace of legislative activity.</div>
+    </div>
+  </div>
+
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#58a6ff;">4 &mdash; Today&apos;s Honest Verdict</div>
+
+    <div class="intel-item">
+      <div class="intel-item-title">A strong validation day with a clear action agenda</div>
+      <div class="intel-item-body">RSAC named governr&apos;s Phase 2 gap publicly. FinCEN created a US market entry with a clean buyer message. 70%+ agentic deployment confirms the market is ready. The breach picture &mdash; two CVSS 10.0 vulnerabilities, a structural MCP design flaw, and an 89% AI attack surge &mdash; is serious and creates urgency. The risk on the table is Zenity&apos;s growing Gartner visibility and the pace of identity vendor encroachment on Phase 2 territory. The week&apos;s news hands governr a tight, specific competitive message and a strong outbound reason to reach out. Use it.</div>
+    </div>
+  </div>
+
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#22d3ee;">5 &mdash; GTM &mdash; Market Opportunities and Priorities</div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-now">Now</span> RSAC action audit gap as a live sales trigger</div>
+      <div class="intel-item-body">Send the VentureBeat RSAC article (&ldquo;Five agent identity frameworks shipped, three gaps remain&rdquo;) to every CISO and CTO contact this week with a single sentence: &ldquo;Every framework that shipped at RSAC verified who the agent was. None of them record what the agent did. That&apos;s Phase 2.&rdquo; This is a warm outbound trigger that is time-limited to the post-RSAC news cycle.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-now">Now</span> FinCEN AML reform as US market entry with CCO buyers</div>
+      <div class="intel-item-body">Target Chief Compliance Officers and Chief Risk Officers at US banks with assets over $10B deploying AI in AML or KYC. Message: &ldquo;FinCEN just told you AI in compliance is rewarded, but only if you can evidence it worked. governr is the audit trail that turns regulatory goodwill into demonstrable compliance.&rdquo; Comments close 9 June &mdash; the window for outbound before this becomes table stakes is six weeks.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-now">Now</span> EU AI Act 98-day countdown as forcing function for UK regulated firms</div>
+      <div class="intel-item-body">The Digital Omnibus delay does not affect UK firms. FCA Consumer Duty, SR 21/3, and DORA obligations are not moving. Frame governr against existing UK obligations, not the EU AI Act itself. Message: &ldquo;Your FCA and PRA audit requirements already demand what the EU AI Act mandates. governr lets you evidence compliance to both in the same workflow &mdash; and the deadline is 98 days away.&rdquo;</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-quarter">This Quarter</span> MCP security posture assessment as Phase 2 entry point</div>
+      <div class="intel-item-body">With the MCP design vulnerability cluster now confirmed and widely reported, develop a &ldquo;MCP Security Posture Assessment&rdquo; product &mdash; a bounded engagement that inventories MCP-connected tools, maps action permissions, and produces a gap report &mdash; that converts directly into a Phase 2 deployment. The CVE cluster is a live sales trigger for every CISO who has MCP in their environment.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-quarter">This Quarter</span> Insurance and legal verticals as underserved high-opportunity targets</div>
+      <div class="intel-item-body">Neither insurance nor legal are in the FCA live testing cohort. Both deploy AI in consequential decisions (underwriting, contract review, claims). Target General Counsels at law firms and Chief Risk Officers at insurers with a simple message: &ldquo;Your sector is not yet in regulatory crosshairs &mdash; that is exactly the time to build the governance infrastructure, not after the first supervisory review.&rdquo;</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-build">Build</span> RegTech consultancy partner programme</div>
+      <div class="intel-item-body">Bovill, Thistle Initiatives, Kroll, and Duff &amp; Phelps all have active AI governance advisory practices. Formalise a standard referral framework with each: governr provides the technology layer; the consultancy provides the regulatory interpretation layer. Structure as a co-sell, not a referral, to protect margin and accelerate deal velocity.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-build">Build</span> Board-level AI Risk Briefing format for CISO escalation pathway</div>
+      <div class="intel-item-body">Design a one-page AI Risk Briefing template that a CISO can take to a board audit committee: what AI systems are deployed, what governance controls are in place, what incidents have occurred, and what the regulatory exposure is. Position it as a governr output format. The buyer is the CISO; the audience is the board. This creates pull from above and below simultaneously.</div>
+    </div>
+  </div>
+
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#a78bfa;">6 &mdash; Product &mdash; Roadmap Priorities</div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-aug">Before Aug 2026</span> EU AI Act Article 12 audit log &mdash; hard deadline, no extensions for UK firms</div>
+      <div class="intel-item-body">The Digital Omnibus delay applies to some EU obligations, but FCA and PRA obligations are not moving. The tamper-evident, exportable audit log must be in production before August 2, 2026. Two CVSS 10.0 exploits in AI tooling this week are a reminder that audit logs that are not tamper-evident are not audit logs &mdash; they are accident reports written after the fact.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-aug">Before Aug 2026</span> Shadow AI detection must cover workflow automation platforms</div>
+      <div class="intel-item-body">The n8n phishing story confirms that shadow AI governance scope must extend to workflow automation tools. Production readiness for shadow AI detection in Q2 must include n8n, Zapier, and Make as detection targets alongside AI model deployments. This is a scope change that should be confirmed with engineering this week.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-q3">Q3 2026</span> NHI governance &mdash; agent token lifecycle and session anomaly detection</div>
+      <div class="intel-item-body">CVE-2026-21858 (n8n, CVSS 10.0) and the MCP design vulnerability cluster both exploit weak token and session controls. NHI governance &mdash; agent token lifecycle management, credential rotation, session anomaly detection &mdash; are named Q3 deliverables. The Ni8mare CVE makes token lifecycle management the most operationally urgent item in the Q3 backlog.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-q3">Q3 2026</span> Phase 1 AI Atlas: compute infrastructure layer</div>
+      <div class="intel-item-body">HMT confirmed in the TSC response (April 16) that it is gathering evidence to designate major AI and cloud providers as Critical Third Parties by end of 2026. The CoreWeave-Anthropic $12B deal and Google&apos;s $40B Anthropic investment mean that Claude deployments now have a three-tier concentration risk: Anthropic model, Google or AWS cloud, CoreWeave compute. All three layers must be visible in AI Atlas to support PRA operational resilience evidence.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-phase3">Phase 3</span> Decision Accountability Record &mdash; scope and name it this quarter</div>
+      <div class="intel-item-body">MIT Technology Review and Harvard Gazette both named the requirement this week in precise language. The Decision Accountability Record &mdash; what the agent knew at decision time, what permissions it held, what data it accessed, what standard of care applied, what outcome it produced &mdash; is the AI equivalent of a dealing record under MiFID II. Phase 3 must define the data model this quarter. Waiting until Phase 2 ships will leave a 6-month gap in a market that is now actively asking for it.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-phase3">Phase 3</span> Agent memory governance surface</div>
+      <div class="intel-item-body">AWS selecting mem0 as its exclusive agent memory layer means persistent memory will be production-scale in enterprise environments by Q3. Phase 3 must include agent memory state as a first-class audit surface: what did the agent remember at decision time, when was that memory written, and was it accurate? This is a new data layer that no existing governance tool addresses. First-mover advantage in agent memory governance is available now.</div>
+    </div>
+
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-phase3">Phase 3</span> Vendor watch-list automated alerts</div>
+      <div class="intel-item-body">Automated Phase 1 flags when key AI vendors change data handling, ownership, or commercial terms. The CoreWeave-Anthropic deal ($12B, five years) and Google&apos;s $40B Anthropic investment would both have triggered this alert for any regulated firm with Claude in their stack. Critical third-party designation by HMT will make this a compliance requirement, not a nice-to-have, by end of 2026.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  governr AI News Digest &mdash; Edition #31 &mdash; 26 April 2026 &mdash; Compiled for AI risk and governance teams in regulated industries. Not investment or legal advice.
+</div>
+
+</body>
+</html>`;
+
+const TEMPLATE_EXEC = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>governr Executive AI Briefing | 26 April 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:     #0B1F35;
+  --navy-mid: #122840;
+  --teal:     #07CFF5;
+  --teal-dk:  #05A8C8;
+  --white:    #FFFFFF;
+  --surface:  #F4F7FA;
+  --border:   #E2E8F0;
+  --text:     #0F172A;
+  --body:     #334155;
+  --muted:    #64748B;
+  --light:    #94A3B8;
+  /* signal colours */
+  --s-green:  #059669; --s-green-bg: #ECFDF5; --s-green-bd: #A7F3D0;
+  --s-amber:  #B45309; --s-amber-bg: #FFFBEB; --s-amber-bd: #FCD34D;
+  --s-red:    #DC2626; --s-red-bg:   #FEF2F2; --s-red-bd:   #FECACA;
+  --s-blue:   #1D4ED8; --s-blue-bg:  #EFF6FF; --s-blue-bd:  #BFDBFE;
+  --s-indigo: #4338CA; --s-indigo-bg:#EEF2FF; --s-indigo-bd:#C7D2FE;
+  --s-grey:   #475569; --s-grey-bg:  #F8FAFC; --s-grey-bd:  #CBD5E1;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: transparent; }
+body { font-family: 'Inter', -apple-system, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+.page { width: 794px; height: 1123px; overflow: hidden; background: var(--surface); }
+a { color: var(--teal-dk); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.brand-wordmark { display: block; height: 24px; width: auto; }
+.brand-text { font-size: 10px; font-weight: 500; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
+.header-right { text-align: right; }
+.header-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.header-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* ── COUNTDOWN BANNER ── */
+.countdown-banner {
+  background: var(--navy);
+  display: flex;
+  align-items: stretch;
+  border-bottom: 3px solid var(--teal);
+}
+.countdown-number-block {
+  background: var(--teal);
+  padding: 17px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 108px;
+  flex-shrink: 0;
+}
+.countdown-n { font-size: 42px; font-weight: 800; color: var(--navy); line-height: 1; letter-spacing: -1.5px; }
+.countdown-unit { font-size: 10px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+.countdown-body { padding: 17px 20px; display: flex; flex-direction: column; justify-content: center; flex: 1; }
+.countdown-label { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal); margin-bottom: 4px; }
+.countdown-headline { font-size: 14px; font-weight: 700; color: var(--white); line-height: 1.2; }
+.countdown-sub { font-size: 10px; color: rgba(255,255,255,0.60); margin-top: 4px; line-height: 1.4; max-width: 400px; }
+.countdown-deadline { background: rgba(255,255,255,0.07); padding: 17px 18px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; min-width: 148px; flex-shrink: 0; border-left: 1px solid rgba(255,255,255,0.08); }
+.deadline-row { display: flex; flex-direction: column; gap: 2px; }
+.deadline-row + .deadline-row { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.10); width: 100%; }
+.deadline-label { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.40); }
+.deadline-date { font-size: 14px; font-weight: 700; color: var(--white); line-height: 1.1; }
+.deadline-note { font-size: 9px; color: rgba(255,255,255,0.50); margin-top: 1px; }
+.deadline-also { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.70); margin-top: 2px; letter-spacing: 0.03em; }
+
+/* ── KPI STRIP ── */
+.kpi-strip {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.kpi-item {
+  padding: 12px 14px;
+  border-right: 1px solid var(--border);
+}
+.kpi-item:first-child { padding-left: 0; }
+.kpi-item:last-child { border-right: none; padding-right: 0; }
+.kpi-value { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1; }
+.kpi-value.warn { color: var(--s-red); }
+.kpi-value.ok   { color: var(--s-green); }
+.kpi-label { font-size: 9px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; }
+.kpi-context { font-size: 9px; color: var(--light); margin-top: 2px; }
+
+/* ── SECTION WRAPPER ── */
+.section { padding: 14px 24px; }
+.section + .section { padding-top: 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+.section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.section-rule { flex: 1; height: 1px; background: var(--border); }
+
+/* ── SIGNAL BADGE ── */
+.sig {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.sig-validates { background: var(--s-green-bg); color: var(--s-green);  border: 1px solid var(--s-green-bd); }
+.sig-phase2    { background: var(--s-amber-bg); color: var(--s-amber);  border: 1px solid var(--s-amber-bd); }
+.sig-phase3    { background: var(--s-indigo-bg);color: var(--s-indigo); border: 1px solid var(--s-indigo-bd);}
+.sig-risk      { background: var(--s-red-bg);   color: var(--s-red);    border: 1px solid var(--s-red-bd);  }
+.sig-sales     { background: var(--s-blue-bg);  color: var(--s-blue);   border: 1px solid var(--s-blue-bd); }
+.sig-watch     { background: var(--s-grey-bg);  color: var(--s-grey);   border: 1px solid var(--s-grey-bd); }
+
+/* ── STORY CARDS ── */
+.stories-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.story-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 13px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.story-card-top { display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 4px; }
+.story-headline { font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.story-body { font-size: 10px; color: var(--body); line-height: 1.5; }
+.story-source { font-size: 9px; color: var(--light); }
+
+/* ── THREAT STRIP ── */
+.threat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.threat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--s-red);
+}
+.threat-card.high { border-left-color: #D97706; }
+.threat-card.intel { border-left-color: var(--s-grey); }
+.threat-top { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.cvss-pill {
+  font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
+}
+.cvss-crit  { background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; }
+.cvss-high  { background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; }
+.cvss-intel { background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1; }
+.threat-id  { font-size: 10.5px; font-weight: 700; color: var(--text); }
+.threat-system { font-size: 9.5px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+.threat-body { font-size: 10px; color: var(--body); line-height: 1.45; }
+
+/* ── ROLE ACTION SECTION ── */
+.roles-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.role-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.role-header {
+  background: var(--navy);
+  padding: 12px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 64px;
+}
+.role-icon {
+  width: 28px; height: 28px;
+  background: rgba(7,207,245,0.12);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.role-icon svg { display: block; }
+.role-title { font-size: 11px; font-weight: 700; color: var(--white); line-height: 1.2; }
+.role-subtitle { font-size: 8px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; line-height: 1.35; }
+.role-body { padding: 11px 12px; display: flex; flex-direction: column; gap: 8px; }
+.role-action { display: flex; gap: 7px; align-items: flex-start; }
+.action-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--teal-dk);
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.action-text { font-size: 10px; color: var(--body); line-height: 1.5; }
+.action-text strong { color: var(--text); font-weight: 600; }
+.action-urgency {
+  display: inline-block;
+  font-size: 8px; font-weight: 700;
+  padding: 1px 4px; border-radius: 2px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  vertical-align: middle; margin-left: 3px;
+}
+.urg-now    { background: #FEE2E2; color: #DC2626; }
+.urg-soon   { background: #FEF3C7; color: #B45309; }
+.urg-watch  { background: #F1F5F9; color: #64748B; }
+
+/* ── FOOTER ── */
+.footer {
+  background: var(--navy);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-brand { display: flex; align-items: center; gap: 10px; }
+.footer-tag  { font-size: 9px; color: rgba(255,255,255,0.40); }
+.footer-cta  {
+  font-size: 10px; font-weight: 600; color: var(--navy);
+  background: var(--teal); padding: 5px 14px; border-radius: 4px;
+  text-decoration: none;
+}
+.footer-cta:hover { background: #06BAD9; text-decoration: none; }
+
+/* ── PRINT / A4 ── */
+@page { size: A4 portrait; margin: 0; }
+@media print {
+  html, body { width: 210mm; height: 297mm; overflow: hidden; background: white; }
+  .page { width: 210mm; height: 297mm; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-brand">
+      <svg class="brand-wordmark" viewBox="0 0 1316 412" height="34" xmlns="http://www.w3.org/2000/svg" aria-label="governr">
+        <path d="M0 0 C0.67885254 0.26651367 1.35770508 0.53302734 2.05712891 0.80761719 C4.42185586 1.74727817 6.77414448 2.7136664 9.125 3.6875 C9.98222656 4.04183105 10.83945313 4.39616211 11.72265625 4.76123047 C22.09459873 9.07119305 32.40847225 13.51814947 42.72640991 17.95535278 C45.47181893 19.13585054 48.21758076 20.31552484 50.96337891 21.49511719 C54.56085195 23.04061879 58.15668029 24.58985838 61.75146484 26.14160156 C71.1145974 30.17384258 80.51614195 34.07424781 89.99311829 37.83122253 C97.46032098 40.79932303 104.82993671 43.95737459 112.1875 47.1875 C114.77006105 48.31948041 117.35338693 49.44969206 119.9375 50.578125 C120.56016251 50.85017761 121.18282501 51.12223022 121.82435608 51.40252686 C125.46569899 52.98665373 129.12395196 54.51375997 132.8125 55.984375 C150.21824437 62.92573046 163.50612036 71.3161392 171.21484375 89.2421875 C173.89015436 96.4299319 173.36814153 103.86837212 173.375 111.4375 C173.37600708 112.20181335 173.37701416 112.96612671 173.37805176 113.75360107 C173.36690851 126.28549329 172.57514569 138.47297147 170.578125 150.86181641 C170.1147093 153.7516727 169.69589308 156.64574618 169.28125 159.54296875 C164.70606369 190.34128987 155.63241166 220.61751583 142.125 248.6875 C141.80708496 249.35362305 141.48916992 250.01974609 141.16162109 250.70605469 C133.09467865 267.51116156 124.11974991 283.61496062 113.125 298.6875 C112.5067334 299.53538086 112.5067334 299.53538086 111.87597656 300.40039062 C98.18379624 319.00233746 82.45411342 336.56782864 64.125 350.6875 C62.86141473 351.69069572 61.59843816 352.69465842 60.3359375 353.69921875 C38.86292846 370.62703146 10.85203106 392.20367352 -17.8671875 389.1484375 C-57.37646081 383.09376964 -101.54827947 341.56667012 -124.875 311.6875 C-125.59792236 310.77919434 -125.59792236 310.77919434 -126.33544922 309.85253906 C-135.01337734 298.9436073 -142.68682443 287.62580254 -149.875 275.6875 C-150.26606934 275.05118652 -150.65713867 274.41487305 -151.06005859 273.75927734 C-172.61427018 238.54488229 -185.22929925 197.09834026 -191.43701172 156.54541016 C-191.7258426 154.66076448 -192.02413955 152.77754184 -192.33251953 150.89599609 C-194.30949063 138.70787329 -195.20431694 126.5825087 -195.34777832 114.24697876 C-195.36563074 112.77337353 -195.39100465 111.29983607 -195.42468262 109.82650757 C-195.72201535 95.15296881 -191.99160011 82.71597053 -181.875 71.6875 C-171.39447891 62.50919934 -158.52295705 57.58233517 -145.8125 52.3125 C-144.42338013 51.73336661 -143.03438351 51.15393749 -141.64550781 50.57421875 C-133.30478275 47.09619043 -124.95328901 43.6443396 -116.578125 40.25 C-113.69971648 39.05935851 -110.87211503 37.77583192 -108.04296875 36.47265625 C-100.89815035 33.20572188 -93.64982261 30.19068727 -86.40365601 27.15744019 C-82.18161279 25.38990923 -77.96177755 23.61712795 -73.7421875 21.84375 C-72.90022324 21.48993759 -72.05825897 21.13612518 -71.19078064 20.77159119 C-63.63244325 17.59204021 -56.09464203 14.36601775 -48.5625 11.125 C-41.01464873 7.88117927 -33.46452675 4.64533655 -25.875 1.5 C-25.20428467 1.22019287 -24.53356934 0.94038574 -23.8425293 0.65209961 C-15.38679845 -2.82453121 -8.62303358 -3.40888299 0 0 Z M-85.875 137.6875 C-95.36860666 149.43011621 -97.09023673 162.63929588 -95.6015625 177.3984375 C-90.86316236 205.02420434 -66.08957381 228.20622923 -44.61572266 244.37011719 C-42.86986361 245.69138723 -41.14196521 247.03317235 -39.41796875 248.3828125 C-25.79678492 259.91675838 -25.79678492 259.91675838 -9 263.625 C2.67972292 262.01641541 12.08942386 252.67507594 21.125 245.6875 C22.52685547 244.61242187 22.52685547 244.61242187 23.95703125 243.515625 C30.15093821 238.67257013 35.96827214 233.43879554 41.68310547 228.04589844 C43.02153196 226.78497649 44.37163065 225.53647561 45.72265625 224.2890625 C60.08377089 210.58796739 73.06030622 192.24177106 74.3671875 171.921875 C74.62190427 157.71433952 71.92923962 145.37965125 61.8125 134.75 C52.03993728 125.69769316 40.35328868 121.72150588 27.125 121.6875 C15.20981235 122.45514514 4.25590905 127.99646165 -3.875 136.6875 C-5.99580245 139.2770635 -7.98231882 141.92733994 -9.875 144.6875 C-13.38021893 143.2535468 -14.87844591 141.59704253 -17 138.5 C-23.98294477 129.25874118 -33.71063806 124.16544317 -45.00390625 122.12109375 C-61.56378961 120.22796629 -74.57658426 125.91595128 -85.875 137.6875 Z " fill="#03D9FE" transform="translate(204.875,8.3125)"/>
+        <path d="M0 0 C2.64125583 2.28506988 4.2103415 4.57482877 5.8828125 7.62890625 C6.3778125 1.19390625 6.3778125 1.19390625 6.8828125 -5.37109375 C12.4928125 -5.37109375 18.1028125 -5.37109375 23.8828125 -5.37109375 C23.95239634 10.75415806 24.00586625 26.87934749 24.03824902 43.00471306 C24.05368763 50.49277752 24.07471928 57.98074671 24.10913086 65.46875 C24.13912569 71.99880132 24.15840933 78.52878361 24.16507798 85.05890191 C24.16897326 88.51339337 24.17806411 91.96768742 24.20000267 95.42211533 C24.22435163 99.28779421 24.22477605 103.15328372 24.22338867 107.01904297 C24.2341745 108.15193253 24.24496033 109.28482208 24.256073 110.45204163 C24.21573983 120.87292063 22.41865924 130.01132581 14.8828125 137.62890625 C4.82958411 145.86925739 -6.29975292 146.79610993 -18.8359375 146.76171875 C-20.01186462 146.76315384 -20.01186462 146.76315384 -21.21154785 146.76461792 C-22.8483895 146.76529221 -24.48523395 146.76349098 -26.12207031 146.75927734 C-28.63873148 146.75385987 -31.15521886 146.75927721 -33.671875 146.765625 C-35.26822956 146.76496522 -36.86458401 146.76368613 -38.4609375 146.76171875 C-39.21499878 146.76374298 -39.96906006 146.76576721 -40.74597168 146.76785278 C-46.00219691 146.74389684 -46.00219691 146.74389684 -47.1171875 145.62890625 C-47.19032317 143.09841223 -47.20966277 140.59585788 -47.1796875 138.06640625 C-47.17517578 137.35548828 -47.17066406 136.64457031 -47.16601562 135.91210938 C-47.15419614 134.15100612 -47.13626013 132.38994589 -47.1171875 130.62890625 C-45.98289307 130.61432373 -44.84859863 130.59974121 -43.67993164 130.5847168 C-39.43597275 130.52635685 -35.1925237 130.44912897 -30.94897461 130.36645508 C-29.11898122 130.33338194 -27.28889013 130.30529626 -25.45874023 130.2824707 C-22.81452137 130.24859818 -20.17118371 130.19626984 -17.52734375 130.140625 C-16.31740501 130.13104012 -16.31740501 130.13104012 -15.08302307 130.1212616 C-9.46636546 129.97875063 -4.20575102 129.13017927 0.8828125 126.62890625 C5.57230644 121.11875087 6.01029496 116.71476583 5.98046875 109.67578125 C5.9790538 109.01555969 5.97763885 108.35533813 5.97618103 107.67510986 C5.97060495 105.57632831 5.95805697 103.4776553 5.9453125 101.37890625 C5.9402944 99.95182446 5.93573204 98.524741 5.93164062 97.09765625 C5.92064338 93.60803793 5.9033953 90.11848269 5.8828125 86.62890625 C5.52074707 87.16652588 5.15868164 87.70414551 4.78564453 88.25805664 C1.56388872 92.82781661 -1.03156269 95.71429556 -6.2421875 98.06640625 C-7.25539063 98.53949219 -8.26859375 99.01257813 -9.3125 99.5 C-18.20344606 103.07866771 -28.79693664 102.83462659 -37.80859375 99.66796875 C-48.9221657 94.66592114 -54.66913644 87.62890404 -59.13671875 76.49609375 C-61.12009375 70.6961047 -61.30412057 65.26666286 -61.35546875 59.19140625 C-61.3635405 58.27488281 -61.37161224 57.35835938 -61.37992859 56.4140625 C-61.39373546 54.47414012 -61.40447275 52.53419379 -61.41235352 50.59423828 C-61.42382621 48.63159956 -61.44420251 46.66899088 -61.47387695 44.70654297 C-61.71790281 28.54630528 -60.98218797 14.43920161 -49.52734375 1.88671875 C-36.18013924 -10.73816646 -14.42584794 -10.31525686 0 0 Z M-36.1171875 13.62890625 C-43.25424209 20.84548234 -44.25905281 28.47919759 -44.3203125 38.30078125 C-44.32601257 39.02324036 -44.33171265 39.74569946 -44.33758545 40.49005127 C-44.34698743 42.01288409 -44.3535502 43.53573682 -44.35742188 45.05859375 C-44.36710138 47.35844459 -44.39815858 49.65739049 -44.4296875 51.95703125 C-44.51207032 63.16056377 -44.0115793 72.5851045 -35.94921875 81.00390625 C-30.36638154 85.95584714 -23.87443721 87.03091416 -16.6484375 86.8984375 C-8.75141715 86.05755107 -2.7617709 83.17695425 2.4453125 77.21484375 C7.3245589 68.43750376 7.35404795 59.2595 7.27392578 49.47021484 C7.25784202 47.13319536 7.27384142 44.79790461 7.29296875 42.4609375 C7.31015646 31.31789031 6.83311171 21.61175783 -1.23828125 13.25390625 C-10.63240356 5.12925993 -26.81136809 5.83798767 -36.1171875 13.62890625 Z " fill="#03D8FE" transform="translate(529.1171875,149.37109375)"/>
+        <path d="M0 0 C0.86625 0.556875 1.7325 1.11375 2.625 1.6875 C10.40070834 9.25858444 13.9128532 17.56426602 16 28 C16 37.24 16 46.48 16 56 C-7.43 56 -30.86 56 -55 56 C-54.41308017 74.57350767 -54.41308017 74.57350767 -45.5625 89.5 C-38.26397951 95.01271228 -29.60816983 95.88632499 -20.69921875 94.69140625 C-13.34616484 93.29494391 -8.28822144 90.2791814 -4 84 C-3.34 82.35 -2.68 80.7 -2 79 C3.94 79 9.88 79 16 79 C13.05934831 90.59923722 8.28145768 98.5488893 -2 105 C-12.87711991 111.17141555 -27.45417316 112.15037761 -39.58203125 109.9453125 C-51.30584973 106.70283928 -60.19861504 100.98585107 -66.51953125 90.47265625 C-72.39772544 78.9364884 -72.33430091 65.80208214 -72.26074219 53.1315918 C-72.24999146 50.93575562 -72.26072658 48.74073402 -72.2734375 46.54492188 C-72.28988161 30.36448912 -71.19323589 15.41729032 -59.4765625 3.26171875 C-43.22555586 -11.57950025 -18.02884594 -11.79526981 0 0 Z M-49 16 C-49.8353125 16.9590625 -49.8353125 16.9590625 -50.6875 17.9375 C-55.47700035 25.46385769 -54.43722031 32.99552497 -55 42 C-37.18 42 -19.36 42 -1 42 C-0.7800251 25.68177621 -0.7800251 25.68177621 -8.93359375 12.6953125 C-15.42506954 7.36960269 -22.59452505 6.33224201 -30.8125 6.61328125 C-38.30391997 7.52216676 -44.14169291 10.11114293 -49 16 Z " fill="#03D8FE" transform="translate(910,150)"/>
+        <path d="M0 0 C8.73065554 6.0756241 14.81650628 14.54367124 17.2699585 24.99189758 C17.71516482 27.62334062 17.85882648 30.06839174 17.87988281 32.73510742 C17.88949036 33.7235112 17.8990979 34.71191498 17.90899658 35.73027039 C17.91324646 36.78865616 17.91749634 37.84704193 17.921875 38.9375 C17.92757507 40.03870682 17.93327515 41.13991364 17.93914795 42.27449036 C17.94858374 44.60363814 17.95512628 46.93279919 17.95898438 49.26196289 C17.9686674 52.80183608 17.99969583 56.34112288 18.03125 59.88085938 C18.03778298 62.14973616 18.04303229 64.41861707 18.046875 66.6875 C18.0653952 68.25989693 18.0653952 68.25989693 18.08428955 69.86405945 C18.04935576 81.55286941 14.88940196 92.46322186 6.45703125 100.91015625 C-5.92437046 111.40616398 -19.62628203 112.83085651 -35.28125 111.64453125 C-43.48300891 110.19031868 -50.22220121 107.39594621 -56.28125 101.64453125 C-56.89613281 101.06960937 -57.51101563 100.4946875 -58.14453125 99.90234375 C-65.35716228 92.45804363 -69.35267964 82.30069766 -69.44238281 71.95288086 C-69.45199036 71.05101547 -69.4615979 70.14915009 -69.47149658 69.21995544 C-69.47574646 68.2553389 -69.47999634 67.29072235 -69.484375 66.296875 C-69.49007507 65.28919571 -69.49577515 64.28151642 -69.50164795 63.24330139 C-69.51108202 61.11086063 -69.5176256 58.9784054 -69.52148438 56.84594727 C-69.53114318 53.61773453 -69.56216282 50.39017159 -69.59375 47.16210938 C-69.67392345 31.87839668 -69.34599945 19.03492184 -59.28125 6.64453125 C-44.68541059 -7.92422868 -17.5563279 -10.43158524 0 0 Z M-46.28125 17.64453125 C-53.15679564 27.19390019 -52.60641986 39.02334528 -52.54199219 50.34155273 C-52.53128379 52.57498419 -52.54193778 54.80760865 -52.5546875 57.04101562 C-52.83475784 75.26262901 -52.83475784 75.26262901 -44.28125 90.64453125 C-36.99419342 96.05147537 -28.62176902 97.28538003 -19.73046875 96.38671875 C-12.86118023 95.11676625 -7.7136953 91.96280142 -3.37062073 86.3866272 C0.68832182 79.8956621 1.17658447 72.76799836 1.15234375 65.30859375 C1.1575856 64.34859467 1.16282745 63.38859558 1.16822815 62.39950562 C1.17461391 60.38093019 1.17335639 58.36231737 1.16479492 56.34375 C1.15629152 53.28447004 1.18508494 50.22706463 1.21679688 47.16796875 C1.63425613 31.30375268 1.63425613 31.30375268 -5.16137695 17.4753418 C-11.0766406 11.6836507 -17.04497251 9.52852293 -25.21875 9.26953125 C-33.73274007 9.51646917 -40.27819587 11.50187121 -46.28125 17.64453125 Z " fill="#03D8FE" transform="translate(660.28125,148.35546875)"/>
+        <path d="M0 0 C7.74525817 7.12885354 12.05914795 15.76028516 12.5202179 26.29896545 C12.64324536 31.4885391 12.5956015 36.67686922 12.55078125 41.8671875 C12.54517755 43.78103298 12.54091111 45.69488279 12.53791809 47.60873413 C12.52653025 52.61631403 12.49711597 57.62362786 12.46380615 62.63110352 C12.43297382 67.75273033 12.41938476 72.87440064 12.40429688 77.99609375 C12.3722398 88.02357249 12.31952213 98.05078486 12.2578125 108.078125 C6.6478125 108.078125 1.0378125 108.078125 -4.7421875 108.078125 C-4.75677002 105.67152588 -4.77135254 103.26492676 -4.78637695 100.78540039 C-4.83684201 92.81052907 -4.90345787 84.83585056 -4.97790241 76.86116886 C-5.02252176 72.02880095 -5.06179629 67.19651571 -5.08862305 62.36401367 C-5.11474041 57.69542393 -5.15520193 53.02715375 -5.20537376 48.35876274 C-5.22198563 46.58273753 -5.23353513 44.80665711 -5.23980141 43.03056526 C-4.93615177 28.31695014 -4.93615177 28.31695014 -10.9296875 15.265625 C-17.8314688 9.89757288 -24.53719171 7.46795144 -33.32421875 8.33203125 C-39.84753648 9.41762086 -44.25834309 11.52331361 -48.9296875 16.328125 C-52.98763847 22.48501613 -54.188752 28.21635094 -54.17456055 35.421875 C-54.1847522 36.21308243 -54.19494385 37.00428986 -54.20544434 37.81947327 C-54.2353706 40.40576444 -54.24480873 42.99168405 -54.25390625 45.578125 C-54.27076809 47.38274344 -54.28892035 49.18735024 -54.30830383 50.99194336 C-54.35564657 55.71991336 -54.38555741 60.44783616 -54.41174316 65.17596436 C-54.44162833 70.00933144 -54.48813121 74.84253615 -54.53320312 79.67578125 C-54.61905733 89.14316254 -54.68494421 98.61052744 -54.7421875 108.078125 C-60.6821875 108.078125 -66.6221875 108.078125 -72.7421875 108.078125 C-72.7653073 93.3620288 -72.78316714 78.64593645 -72.79399967 63.92982578 C-72.79916243 57.09733526 -72.80620473 50.26485621 -72.81762695 43.43237305 C-72.82863457 36.84477195 -72.83446373 30.25717969 -72.83706474 23.66956902 C-72.909232 21.15004221 -72.91285357 18.63051609 -72.91823006 15.91568184 C-72.92543676 12.40023485 -72.9264911 8.88483789 -72.92602539 5.36938477 C-72.92962067 4.31634659 -72.93321594 3.26330841 -72.93692017 2.17835999 C-72.93485817 0.75009888 -72.93485817 0.75009888 -72.93275452 -0.51170349 C-72.93367631 -1.53939506 -72.9345981 -2.37177412 -72.86523533 -3.03406429 C-72.7421875 -4.921875 -72.7421875 -4.921875 -71.7421875 -5.921875 C-69.0648737 -6.02168714 -66.41914575 -6.06067375 -63.7421875 -6.046875 C-62.99195313 -6.05074219 -62.24171875 -6.05460938 -61.46875 -6.05859375 C-55.86879803 -6.04848553 -55.86879803 -6.04848553 -54.7421875 -4.921875 C-54.50790972 -2.90592918 -54.32882626 -0.883401 -54.1796875 1.140625 C-54.05400391 2.79771484 -54.05400391 2.79771484 -53.92578125 4.48828125 C-53.86519531 5.34292969 -53.80460937 6.19757813 -53.7421875 7.078125 C-53.44828125 6.57023438 -53.154375 6.06234375 -52.8515625 5.5390625 C-48.5406144 -1.07601304 -43.05789495 -4.16895905 -35.7421875 -6.921875 C-23.11108128 -9.56001744 -10.41959332 -7.97383669 0 0 Z " fill="#04D9FE" transform="translate(1159.7421875,149.921875)"/>
+        <path d="M0 0 C5.61 0 11.22 0 17 0 C20.68043645 8.83293807 23.70821777 17.85004358 26.71875 26.92578125 C27.26373692 28.56193744 27.80894786 30.19801903 28.35437012 31.83403015 C29.49250268 35.24998414 30.62863263 38.66659505 31.76318359 42.08374023 C33.2056891 46.4282083 34.65211763 50.77135704 36.09993744 55.11405659 C37.22507483 58.48974293 38.34863741 61.86595175 39.47169495 65.24233055 C40.00392301 66.84216091 40.53649554 68.44187673 41.06944275 70.04146767 C44.16191187 79.32798759 47.17363459 88.62828987 50 98 C50.27832169 97.10397064 50.55664337 96.20794128 50.84339905 95.28475952 C57.54457388 73.72557783 64.47214396 52.24491304 71.515625 30.79516602 C72.17589797 28.78275314 72.83605751 26.77030304 73.49609375 24.7578125 C73.8090036 23.80468674 74.12191345 22.85156097 74.44430542 21.86955261 C76.48065908 15.64682782 78.43791172 9.40781994 80.29321289 3.12841797 C81 1 81 1 82 0 C84.86267567 -0.07325168 87.700719 -0.09238205 90.5625 -0.0625 C91.36880859 -0.05798828 92.17511719 -0.05347656 93.00585938 -0.04882812 C95.00393756 -0.03700518 97.00197783 -0.01906914 99 0 C97.4993222 7.56549982 95.20352705 14.71000252 92.703125 22 C92.27250054 23.26656465 91.84229421 24.53327152 91.41247559 25.80010986 C90.26675238 29.17314115 89.11525646 32.544174 87.96250916 35.91481018 C86.77024946 39.40401134 85.58316185 42.89497128 84.39550781 46.38574219 C82.49582155 51.96716634 80.59296009 57.5474976 78.6875 63.12695312 C76.29607392 70.12947113 73.91252129 77.13464695 71.53125 84.140625 C70.56995248 86.96625889 69.60831042 89.79177504 68.6463623 92.6171875 C68.05081178 94.3664499 67.4555138 96.1157983 66.86047363 97.86523438 C66.04910534 100.2492121 65.23583033 102.63252953 64.421875 105.015625 C64.18746704 105.70529358 63.95305908 106.39496216 63.71154785 107.10552979 C62.11483124 111.77033753 62.11483124 111.77033753 61 114 C53.41 114 45.82 114 38 114 C33.50073524 102.75183811 33.50073524 102.75183811 32.02392578 98.28295898 C31.52085907 96.76872849 31.52085907 96.76872849 31.00762939 95.22390747 C30.65706482 94.15872894 30.30650024 93.09355042 29.9453125 91.99609375 C29.56671082 90.85486053 29.18810913 89.71362732 28.79803467 88.53781128 C27.57109336 84.83856227 26.3480546 81.13803564 25.125 77.4375 C23.42483046 72.30370651 21.72071355 67.17122399 20.015625 62.0390625 C19.80332623 61.39975863 19.59102745 60.76045475 19.37229538 60.10177803 C16.51424226 51.4986095 13.61943812 42.9088857 10.671875 34.3359375 C10.34375824 33.38108963 10.01564148 32.42624176 9.67758179 31.44245911 C8.15967055 27.03061931 6.63486172 22.62128357 5.10205078 18.21459961 C4.5653364 16.66002569 4.0287097 15.1054215 3.4921875 13.55078125 C3.25143494 12.86587616 3.01068237 12.18097107 2.76263428 11.47531128 C1.42290633 7.57968026 0.68797674 4.12786044 0 0 Z " fill="#03D8FE" transform="translate(709,144)"/>
+        <path d="M0 0 C8.64648345 7.44215183 12.94284194 16.55323272 14.1875 27.8828125 C14.33216073 32.23227845 14.28014602 36.52844963 14.1875 40.8828125 C8.2475 40.8828125 2.3075 40.8828125 -3.8125 40.8828125 C-4.039375 38.0984375 -4.26625 35.3140625 -4.5 32.4453125 C-5.37507872 23.7729485 -6.79366752 17.21758839 -13.75 11.4453125 C-21.63047822 7.42466035 -30.12826273 6.0930459 -38.703125 8.79296875 C-45.56615839 11.9881834 -49.27793498 15.46716777 -52.40942383 22.43725586 C-54.85060975 30.07331004 -54.29586046 38.32590138 -54.32421875 46.26171875 C-54.34108516 48.04248782 -54.35923801 49.82324514 -54.37861633 51.60398865 C-54.42590963 56.26453983 -54.45585223 60.92504329 -54.48205566 65.58575439 C-54.51196605 70.35218728 -54.55846013 75.1184561 -54.60351562 79.88476562 C-54.68931343 89.21738048 -54.75522782 98.54997896 -54.8125 107.8828125 C-60.7525 107.8828125 -66.6925 107.8828125 -72.8125 107.8828125 C-72.8356198 93.1667163 -72.85347964 78.45062395 -72.86431217 63.73451328 C-72.86947493 56.90202276 -72.87651723 50.06954371 -72.88793945 43.23706055 C-72.89894707 36.64945945 -72.90477623 30.06186719 -72.90737724 23.47425652 C-72.909232 20.95472971 -72.91285357 18.43520359 -72.91823006 15.91568184 C-72.92543676 12.40023485 -72.9264911 8.88483789 -72.92602539 5.36938477 C-72.92962067 4.31634659 -72.93321594 3.26330841 -72.93692017 2.17835999 C-72.93485817 0.75009888 -72.93485817 0.75009888 -72.93275452 -0.51170349 C-72.93367631 -1.53939506 -72.9345981 -2.37177412 -72.93554783 -3.22937679 C-72.8125 -5.1171875 -72.8125 -5.1171875 -71.8125 -6.1171875 C-69.11595146 -6.19038371 -66.44558542 -6.20961287 -63.75 -6.1796875 C-62.99138672 -6.17517578 -62.23277344 -6.17066406 -61.45117188 -6.16601562 C-59.57158129 -6.1541943 -57.69203101 -6.13625828 -55.8125 -6.1171875 C-55.4825 -1.1671875 -55.1525 3.7828125 -54.8125 8.8828125 C-54.008125 7.5215625 -53.20375 6.1603125 -52.375 4.7578125 C-48.15331187 -1.53507943 -42.82200543 -5.57670756 -35.4375 -7.4921875 C-22.65924859 -9.64035108 -10.43852277 -7.99617609 0 0 Z " fill="#03D8FE" transform="translate(1039.8125,150.1171875)"/>
+        <path d="M0 0 C8.11818197 6.21897426 14.17020187 15.1114038 15.703125 25.3046875 C16.0156439 30.98277351 15.83855452 36.61664782 15.703125 42.3046875 C10.093125 42.3046875 4.483125 42.3046875 -1.296875 42.3046875 C-1.52375 39.8709375 -1.750625 37.4371875 -1.984375 34.9296875 C-2.91079844 26.76754894 -4.81950851 19.97001974 -10.609375 13.8671875 C-18.61925379 9.21028123 -26.51382389 7.76257703 -35.66796875 9.84375 C-41.97077893 12.01220265 -46.354642 15.28400491 -49.4593811 21.23649597 C-53.32264624 30.77683083 -52.63841332 41.66994074 -52.7109375 51.78515625 C-52.7296843 53.45096254 -52.74926022 55.11675968 -52.7696228 56.782547 C-52.82057951 61.1306922 -52.86039839 65.47886806 -52.89776611 69.82714844 C-52.93803661 74.27872067 -52.98902285 78.73016938 -53.0390625 83.18164062 C-53.13538911 91.88924405 -53.21893737 100.59690006 -53.296875 109.3046875 C-58.906875 109.3046875 -64.516875 109.3046875 -70.296875 109.3046875 C-70.296875 71.6846875 -70.296875 34.0646875 -70.296875 -4.6953125 C-64.686875 -4.6953125 -59.076875 -4.6953125 -53.296875 -4.6953125 C-52.801875 2.2346875 -52.801875 2.2346875 -52.296875 9.3046875 C-51.41 8.0671875 -50.523125 6.8296875 -49.609375 5.5546875 C-37.94768489 -9.8943272 -15.40721583 -10.58463201 0 0 Z " fill="#03D8FE" transform="translate(1285.296875,148.6953125)"/>
+      </svg>
+      <div class="brand-text">AI control infrastructure for regulated industries</div>
+    </div>
+    <div class="header-right">
+      <div class="header-title">Executive AI Briefing</div>
+      <div class="header-sub">Sunday, 26 April 2026 &nbsp;&middot;&nbsp; For CRO &middot; CISO &middot; CTO &middot; COO</div>
+    </div>
+  </div>
+
+  <!-- EU AI ACT COUNTDOWN BANNER -->
+  <div class="countdown-banner">
+    <div class="countdown-number-block">
+      <div class="countdown-n">98</div>
+      <div class="countdown-unit">Days Left</div>
+    </div>
+    <div class="countdown-body">
+      <div class="countdown-label">EU AI Act: Mandatory Compliance Deadline</div>
+      <div class="countdown-headline">High-risk AI systems must comply with full EU AI Act obligations by 2 August 2026.</div>
+      <div class="countdown-sub">Audit logging, human oversight, and risk management become legally enforceable. UK firms face parallel FCA and PRA obligations on the same timeline.</div>
+    </div>
+    <div class="countdown-deadline">
+      <div class="deadline-row">
+        <div class="deadline-label">Hard Deadline</div>
+        <div class="deadline-date">2 Aug 2026</div>
+        <div class="deadline-note">EU AI Act Article 6+</div>
+      </div>
+      <div class="deadline-row">
+        <div class="deadline-label">Also Applies</div>
+        <div class="deadline-also">FCA &middot; PRA &middot; DORA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi-item">
+      <div class="kpi-value warn">2</div>
+      <div class="kpi-label">CVSS 10.0 CVEs This Week</div>
+      <div class="kpi-context">AI workflow tooling: patch now</div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-value">70%+</div>
+      <div class="kpi-label">Banks Running Agentic AI</div>
+      <div class="kpi-context">Most without a governance layer</div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-value">19</div>
+      <div class="kpi-label">AI Bills Passed This Month</div>
+      <div class="kpi-context">US state-level surge accelerating</div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-value ok">5</div>
+      <div class="kpi-label">RSAC Agent Identity Frameworks</div>
+      <div class="kpi-context">None include action audit trail</div>
+    </div>
+  </div>
+
+  <!-- TODAY&apos;S SIGNALS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Today&apos;s Signals</div>
+      <div class="section-rule"></div>
+    </div>
+    <div class="stories-grid">
+
+      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">RSAC 2026: Every agent identity framework shipped. None record what agents do.</div>
+          <span class="sig sig-phase2">Governance Gap</span>
+        </div>
+        <div class="story-body">Five vendors shipped agent identity frameworks at RSAC. All five stop at "who". None record what agents actually did.</div>
+        <div class="story-source"><a href="https://venturebeat.com/security/rsac-2026-agent-identity-frameworks-three-gaps" target="_blank">VentureBeat</a> &middot; 25 April 2026</div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">FinCEN's 25-year AML overhaul endorses AI in compliance, but only if auditable</div>
+          <span class="sig sig-validates">Regulatory Opportunity</span>
+        </div>
+        <div class="story-body">FinCEN's 25-year AML overhaul offers a regulatory safe harbour for AI, but only for documented, auditable systems. Comments close 9 June.</div>
+        <div class="story-source"><a href="https://fintech.global/2026/04/23/fincen-reform-puts-ai-at-the-heart-of-aml-cft-compliance/" target="_blank">FinTech Global</a> &middot; <a href="https://www.fincen.gov/news/news-releases/fincen-proposes-rule-fundamentally-reform-financial-institution-programs" target="_blank">FinCEN.gov</a> &middot; 23 April 2026</div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">19 AI bills passed into law in April alone as US state regulation surges</div>
+          <span class="sig sig-risk">Compliance Risk</span>
+        </div>
+        <div class="story-body">States are pressing ahead despite federal preemption pressure. Colorado enforces 30 June. The map is fragmenting faster than manual tracking can follow.</div>
+        <div class="story-source"><a href="https://pluralpolicy.com/blog/the-ai-governance-watch-april-2026-nineteen-new-ai-bills-passed-into-law/" target="_blank">Plural Policy</a> &middot; 24 April 2026</div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">n8n weaponised for phishing at 686% higher volume, with a CVSS 10 RCE disclosed the same week</div>
+          <span class="sig sig-risk">Active Threat</span>
+        </div>
+        <div class="story-body">Cisco Talos confirmed n8n has been weaponised for phishing since October. Same week: a CVSS 10.0 RCE allowing full unauthenticated takeover of any exposed instance.</div>
+        <div class="story-source"><a href="https://thehackernews.com/2026/04/n8n-webhooks-abused-since-october-2025.html" target="_blank">The Hacker News</a> &middot; <a href="https://blog.talosintelligence.com/the-n8n-n8mare/" target="_blank">Cisco Talos</a> &middot; 24 April 2026</div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">Hugging Face launches autonomous ML engineering agent, trending #1 on GitHub</div>
+          <span class="sig sig-watch">Emerging Risk</span>
+        </div>
+        <div class="story-body">ml-intern reads papers, trains models, and iterates with no human sign-off. Fully autonomous AI agents are now in open-source production.</div>
+        <div class="story-source"><a href="https://aitoolly.com/ai-news/article/2026-04-25-hugging-face-launches-ml-intern-an-open-source-ai-agent-for-machine-learning-engineering-tasks" target="_blank">AIToolly</a> &middot; 25 April 2026</div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">MIT Technology Review: enterprise security must be redesigned around agents, not retrofitted</div>
+          <span class="sig sig-phase3">Industry Insight</span>
+        </div>
+        <div class="story-body">MIT TR argues enterprise security needs rebuilding around agents, not retrofitting. Logging for debugging is not the same as logging for accountability.</div>
+        <div class="story-source"><a href="https://www.technologyreview.com/2026/04/21/1136158/building-agent-first-governance-and-security/" target="_blank">MIT Technology Review</a> &middot; 21 April 2026</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ACTION BY ROLE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">What You Should Do Today</div>
+      <div class="section-rule"></div>
+    </div>
+    <div class="roles-grid">
+
+      <div class="role-card">
+        <div class="role-header">
+          <div class="role-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 1.5L2 4v4c0 3.31 2.56 5.77 6 6.5 3.44-.73 6-3.19 6-6.5V4L8 1.5z" stroke="#07CFF5" stroke-width="1.25" stroke-linejoin="round"/>
+              <path d="M5.5 8l1.75 1.75L10.5 6.5" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="role-title">CRO</div>
+            <div class="role-subtitle">Chief Risk Officer</div>
+          </div>
+        </div>
+        <div class="role-body">
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">Get your high-risk AI inventory signed off this week. 98 days left: audit logging needs to be in production, not in a plan. <span class="action-urgency urg-now">Now</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">FinCEN just gave AI in compliance a regulatory green light, but only if it's auditable. If your AML stack isn't, the safe harbour isn't yours. <span class="action-urgency urg-now">6 wks</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">19 bills in April. Colorado hits 30 June, EU Act 2 August. If your team is still tracking this manually, you're already behind. <span class="action-urgency urg-soon">Soon</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="role-header">
+          <div class="role-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3.5" y="7" width="9" height="7" rx="1.25" stroke="#07CFF5" stroke-width="1.25"/>
+              <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round"/>
+              <circle cx="8" cy="10.5" r="1" fill="#07CFF5"/>
+            </svg>
+          </div>
+          <div>
+            <div class="role-title">CISO</div>
+            <div class="role-subtitle">Chief Information Security Officer</div>
+          </div>
+        </div>
+        <div class="role-body">
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">n8n and Flowise both have CVSS 10.0 RCEs this week. If either is running, treat it as P1 today. <span class="action-urgency urg-now">Now</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">Map your MCP-connected tools. The vulnerability is structural and Anthropic isn't fixing the protocol. Know what's exposed. <span class="action-urgency urg-now">Now</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">Your VM programme won't find n8n or Flowise. Business teams deploy them without IT. Expand your shadow AI scan. <span class="action-urgency urg-soon">Soon</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="role-header">
+          <div class="role-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5.5 5L2.5 8l3 3" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10.5 5l3 3-3 3" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 3.5l-2 9" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="role-title">CTO</div>
+            <div class="role-subtitle">Chief Technology Officer</div>
+          </div>
+        </div>
+        <div class="role-body">
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">RSAC shipped five agent identity frameworks. None log what agents actually do. Your regulator will ask for that trail before your vendor ships it. <span class="action-urgency urg-now">Now</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">Hugging Face's ml-intern trains models with no human in the loop. Set your agentic action boundary policy before your engineers deploy something similar. <span class="action-urgency urg-soon">Soon</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">AWS backed mem0 as its agent memory layer. What an agent remembers is now part of the audit record. <span class="action-urgency urg-watch">Watch</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="role-header">
+          <div class="role-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="9" width="2.5" height="4.5" rx="0.5" fill="#07CFF5"/>
+              <rect x="6.75" y="6" width="2.5" height="7.5" rx="0.5" fill="#07CFF5"/>
+              <rect x="11.5" y="2.5" width="2.5" height="11" rx="0.5" fill="#07CFF5"/>
+            </svg>
+          </div>
+          <div>
+            <div class="role-title">COO</div>
+            <div class="role-subtitle">Chief Operating Officer</div>
+          </div>
+        </div>
+        <div class="role-body">
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">If your teams use n8n, Zapier, or Make for AI workflows, those are a regulated risk surface and security probably doesn't know they're there. <span class="action-urgency urg-now">Now</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">US, EU, and UK rules are diverging fast. 19 new bills in April alone. This is a tooling problem, not a headcount one. <span class="action-urgency urg-soon">Soon</span></div>
+          </div>
+          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">88% of firms running AI agents had an incident last year. Your IR plan almost certainly doesn't cover agentic scenarios yet. <span class="action-urgency urg-soon">Soon</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-brand">
+      <svg viewBox="0 0 1316 412" height="26" xmlns="http://www.w3.org/2000/svg" aria-label="governr">
+        <path d="M0 0 C0.67885254 0.26651367 1.35770508 0.53302734 2.05712891 0.80761719 C4.42185586 1.74727817 6.77414448 2.7136664 9.125 3.6875 C9.98222656 4.04183105 10.83945313 4.39616211 11.72265625 4.76123047 C22.09459873 9.07119305 32.40847225 13.51814947 42.72640991 17.95535278 C45.47181893 19.13585054 48.21758076 20.31552484 50.96337891 21.49511719 C54.56085195 23.04061879 58.15668029 24.58985838 61.75146484 26.14160156 C71.1145974 30.17384258 80.51614195 34.07424781 89.99311829 37.83122253 C97.46032098 40.79932303 104.82993671 43.95737459 112.1875 47.1875 C114.77006105 48.31948041 117.35338693 49.44969206 119.9375 50.578125 C120.56016251 50.85017761 121.18282501 51.12223022 121.82435608 51.40252686 C125.46569899 52.98665373 129.12395196 54.51375997 132.8125 55.984375 C150.21824437 62.92573046 163.50612036 71.3161392 171.21484375 89.2421875 C173.89015436 96.4299319 173.36814153 103.86837212 173.375 111.4375 C173.37600708 112.20181335 173.37701416 112.96612671 173.37805176 113.75360107 C173.36690851 126.28549329 172.57514569 138.47297147 170.578125 150.86181641 C170.1147093 153.7516727 169.69589308 156.64574618 169.28125 159.54296875 C164.70606369 190.34128987 155.63241166 220.61751583 142.125 248.6875 C141.80708496 249.35362305 141.48916992 250.01974609 141.16162109 250.70605469 C133.09467865 267.51116156 124.11974991 283.61496062 113.125 298.6875 C112.5067334 299.53538086 112.5067334 299.53538086 111.87597656 300.40039062 C98.18379624 319.00233746 82.45411342 336.56782864 64.125 350.6875 C62.86141473 351.69069572 61.59843816 352.69465842 60.3359375 353.69921875 C38.86292846 370.62703146 10.85203106 392.20367352 -17.8671875 389.1484375 C-57.37646081 383.09376964 -101.54827947 341.56667012 -124.875 311.6875 C-125.59792236 310.77919434 -125.59792236 310.77919434 -126.33544922 309.85253906 C-135.01337734 298.9436073 -142.68682443 287.62580254 -149.875 275.6875 C-150.26606934 275.05118652 -150.65713867 274.41487305 -151.06005859 273.75927734 C-172.61427018 238.54488229 -185.22929925 197.09834026 -191.43701172 156.54541016 C-191.7258426 154.66076448 -192.02413955 152.77754184 -192.33251953 150.89599609 C-194.30949063 138.70787329 -195.20431694 126.5825087 -195.34777832 114.24697876 C-195.36563074 112.77337353 -195.39100465 111.29983607 -195.42468262 109.82650757 C-195.72201535 95.15296881 -191.99160011 82.71597053 -181.875 71.6875 C-171.39447891 62.50919934 -158.52295705 57.58233517 -145.8125 52.3125 C-144.42338013 51.73336661 -143.03438351 51.15393749 -141.64550781 50.57421875 C-133.30478275 47.09619043 -124.95328901 43.6443396 -116.578125 40.25 C-113.69971648 39.05935851 -110.87211503 37.77583192 -108.04296875 36.47265625 C-100.89815035 33.20572188 -93.64982261 30.19068727 -86.40365601 27.15744019 C-82.18161279 25.38990923 -77.96177755 23.61712795 -73.7421875 21.84375 C-72.90022324 21.48993759 -72.05825897 21.13612518 -71.19078064 20.77159119 C-63.63244325 17.59204021 -56.09464203 14.36601775 -48.5625 11.125 C-41.01464873 7.88117927 -33.46452675 4.64533655 -25.875 1.5 C-25.20428467 1.22019287 -24.53356934 0.94038574 -23.8425293 0.65209961 C-15.38679845 -2.82453121 -8.62303358 -3.40888299 0 0 Z M-85.875 137.6875 C-95.36860666 149.43011621 -97.09023673 162.63929588 -95.6015625 177.3984375 C-90.86316236 205.02420434 -66.08957381 228.20622923 -44.61572266 244.37011719 C-42.86986361 245.69138723 -41.14196521 247.03317235 -39.41796875 248.3828125 C-25.79678492 259.91675838 -25.79678492 259.91675838 -9 263.625 C2.67972292 262.01641541 12.08942386 252.67507594 21.125 245.6875 C22.52685547 244.61242187 22.52685547 244.61242187 23.95703125 243.515625 C30.15093821 238.67257013 35.96827214 233.43879554 41.68310547 228.04589844 C43.02153196 226.78497649 44.37163065 225.53647561 45.72265625 224.2890625 C60.08377089 210.58796739 73.06030622 192.24177106 74.3671875 171.921875 C74.62190427 157.71433952 71.92923962 145.37965125 61.8125 134.75 C52.03993728 125.69769316 40.35328868 121.72150588 27.125 121.6875 C15.20981235 122.45514514 4.25590905 127.99646165 -3.875 136.6875 C-5.99580245 139.2770635 -7.98231882 141.92733994 -9.875 144.6875 C-13.38021893 143.2535468 -14.87844591 141.59704253 -17 138.5 C-23.98294477 129.25874118 -33.71063806 124.16544317 -45.00390625 122.12109375 C-61.56378961 120.22796629 -74.57658426 125.91595128 -85.875 137.6875 Z " fill="#03D9FE" transform="translate(204.875,8.3125)"/>
+        <path d="M0 0 C2.64125583 2.28506988 4.2103415 4.57482877 5.8828125 7.62890625 C6.3778125 1.19390625 6.3778125 1.19390625 6.8828125 -5.37109375 C12.4928125 -5.37109375 18.1028125 -5.37109375 23.8828125 -5.37109375 C23.95239634 10.75415806 24.00586625 26.87934749 24.03824902 43.00471306 C24.05368763 50.49277752 24.07471928 57.98074671 24.10913086 65.46875 C24.13912569 71.99880132 24.15840933 78.52878361 24.16507798 85.05890191 C24.16897326 88.51339337 24.17806411 91.96768742 24.20000267 95.42211533 C24.22435163 99.28779421 24.22477605 103.15328372 24.22338867 107.01904297 C24.2341745 108.15193253 24.24496033 109.28482208 24.256073 110.45204163 C24.21573983 120.87292063 22.41865924 130.01132581 14.8828125 137.62890625 C4.82958411 145.86925739 -6.29975292 146.79610993 -18.8359375 146.76171875 C-20.01186462 146.76315384 -20.01186462 146.76315384 -21.21154785 146.76461792 C-22.8483895 146.76529221 -24.48523395 146.76349098 -26.12207031 146.75927734 C-28.63873148 146.75385987 -31.15521886 146.75927721 -33.671875 146.765625 C-35.26822956 146.76496522 -36.86458401 146.76368613 -38.4609375 146.76171875 C-39.21499878 146.76374298 -39.96906006 146.76576721 -40.74597168 146.76785278 C-46.00219691 146.74389684 -46.00219691 146.74389684 -47.1171875 145.62890625 C-47.19032317 143.09841223 -47.20966277 140.59585788 -47.1796875 138.06640625 C-47.17517578 137.35548828 -47.17066406 136.64457031 -47.16601562 135.91210938 C-47.15419614 134.15100612 -47.13626013 132.38994589 -47.1171875 130.62890625 C-45.98289307 130.61432373 -44.84859863 130.59974121 -43.67993164 130.5847168 C-39.43597275 130.52635685 -35.1925237 130.44912897 -30.94897461 130.36645508 C-29.11898122 130.33338194 -27.28889013 130.30529626 -25.45874023 130.2824707 C-22.81452137 130.24859818 -20.17118371 130.19626984 -17.52734375 130.140625 C-16.31740501 130.13104012 -16.31740501 130.13104012 -15.08302307 130.1212616 C-9.46636546 129.97875063 -4.20575102 129.13017927 0.8828125 126.62890625 C5.57230644 121.11875087 6.01029496 116.71476583 5.98046875 109.67578125 C5.9790538 109.01555969 5.97763885 108.35533813 5.97618103 107.67510986 C5.97060495 105.57632831 5.95805697 103.4776553 5.9453125 101.37890625 C5.9402944 99.95182446 5.93573204 98.524741 5.93164062 97.09765625 C5.92064338 93.60803793 5.9033953 90.11848269 5.8828125 86.62890625 C5.52074707 87.16652588 5.15868164 87.70414551 4.78564453 88.25805664 C1.56388872 92.82781661 -1.03156269 95.71429556 -6.2421875 98.06640625 C-7.25539063 98.53949219 -8.26859375 99.01257813 -9.3125 99.5 C-18.20344606 103.07866771 -28.79693664 102.83462659 -37.80859375 99.66796875 C-48.9221657 94.66592114 -54.66913644 87.62890404 -59.13671875 76.49609375 C-61.12009375 70.6961047 -61.30412057 65.26666286 -61.35546875 59.19140625 C-61.3635405 58.27488281 -61.37161224 57.35835938 -61.37992859 56.4140625 C-61.39373546 54.47414012 -61.40447275 52.53419379 -61.41235352 50.59423828 C-61.42382621 48.63159956 -61.44420251 46.66899088 -61.47387695 44.70654297 C-61.71790281 28.54630528 -60.98218797 14.43920161 -49.52734375 1.88671875 C-36.18013924 -10.73816646 -14.42584794 -10.31525686 0 0 Z M-36.1171875 13.62890625 C-43.25424209 20.84548234 -44.25905281 28.47919759 -44.3203125 38.30078125 C-44.32601257 39.02324036 -44.33171265 39.74569946 -44.33758545 40.49005127 C-44.34698743 42.01288409 -44.3535502 43.53573682 -44.35742188 45.05859375 C-44.36710138 47.35844459 -44.39815858 49.65739049 -44.4296875 51.95703125 C-44.51207032 63.16056377 -44.0115793 72.5851045 -35.94921875 81.00390625 C-30.36638154 85.95584714 -23.87443721 87.03091416 -16.6484375 86.8984375 C-8.75141715 86.05755107 -2.7617709 83.17695425 2.4453125 77.21484375 C7.3245589 68.43750376 7.35404795 59.2595 7.27392578 49.47021484 C7.25784202 47.13319536 7.27384142 44.79790461 7.29296875 42.4609375 C7.31015646 31.31789031 6.83311171 21.61175783 -1.23828125 13.25390625 C-10.63240356 5.12925993 -26.81136809 5.83798767 -36.1171875 13.62890625 Z " fill="#03D8FE" transform="translate(529.1171875,149.37109375)"/>
+        <path d="M0 0 C0.86625 0.556875 1.7325 1.11375 2.625 1.6875 C10.40070834 9.25858444 13.9128532 17.56426602 16 28 C16 37.24 16 46.48 16 56 C-7.43 56 -30.86 56 -55 56 C-54.41308017 74.57350767 -54.41308017 74.57350767 -45.5625 89.5 C-38.26397951 95.01271228 -29.60816983 95.88632499 -20.69921875 94.69140625 C-13.34616484 93.29494391 -8.28822144 90.2791814 -4 84 C-3.34 82.35 -2.68 80.7 -2 79 C3.94 79 9.88 79 16 79 C13.05934831 90.59923722 8.28145768 98.5488893 -2 105 C-12.87711991 111.17141555 -27.45417316 112.15037761 -39.58203125 109.9453125 C-51.30584973 106.70283928 -60.19861504 100.98585107 -66.51953125 90.47265625 C-72.39772544 78.9364884 -72.33430091 65.80208214 -72.26074219 53.1315918 C-72.24999146 50.93575562 -72.26072658 48.74073402 -72.2734375 46.54492188 C-72.28988161 30.36448912 -71.19323589 15.41729032 -59.4765625 3.26171875 C-43.22555586 -11.57950025 -18.02884594 -11.79526981 0 0 Z M-49 16 C-49.8353125 16.9590625 -49.8353125 16.9590625 -50.6875 17.9375 C-55.47700035 25.46385769 -54.43722031 32.99552497 -55 42 C-37.18 42 -19.36 42 -1 42 C-0.7800251 25.68177621 -0.7800251 25.68177621 -8.93359375 12.6953125 C-15.42506954 7.36960269 -22.59452505 6.33224201 -30.8125 6.61328125 C-38.30391997 7.52216676 -44.14169291 10.11114293 -49 16 Z " fill="#03D8FE" transform="translate(910,150)"/>
+        <path d="M0 0 C8.73065554 6.0756241 14.81650628 14.54367124 17.2699585 24.99189758 C17.71516482 27.62334062 17.85882648 30.06839174 17.87988281 32.73510742 C17.88949036 33.7235112 17.8990979 34.71191498 17.90899658 35.73027039 C17.91324646 36.78865616 17.91749634 37.84704193 17.921875 38.9375 C17.92757507 40.03870682 17.93327515 41.13991364 17.93914795 42.27449036 C17.94858374 44.60363814 17.95512628 46.93279919 17.95898438 49.26196289 C17.9686674 52.80183608 17.99969583 56.34112288 18.03125 59.88085938 C18.03778298 62.14973616 18.04303229 64.41861707 18.046875 66.6875 C18.0653952 68.25989693 18.0653952 68.25989693 18.08428955 69.86405945 C18.04935576 81.55286941 14.88940196 92.46322186 6.45703125 100.91015625 C-5.92437046 111.40616398 -19.62628203 112.83085651 -35.28125 111.64453125 C-43.48300891 110.19031868 -50.22220121 107.39594621 -56.28125 101.64453125 C-56.89613281 101.06960937 -57.51101563 100.4946875 -58.14453125 99.90234375 C-65.35716228 92.45804363 -69.35267964 82.30069766 -69.44238281 71.95288086 C-69.45199036 71.05101547 -69.4615979 70.14915009 -69.47149658 69.21995544 C-69.47574646 68.2553389 -69.47999634 67.29072235 -69.484375 66.296875 C-69.49007507 65.28919571 -69.49577515 64.28151642 -69.50164795 63.24330139 C-69.51108202 61.11086063 -69.5176256 58.9784054 -69.52148438 56.84594727 C-69.53114318 53.61773453 -69.56216282 50.39017159 -69.59375 47.16210938 C-69.67392345 31.87839668 -69.34599945 19.03492184 -59.28125 6.64453125 C-44.68541059 -7.92422868 -17.5563279 -10.43158524 0 0 Z M-46.28125 17.64453125 C-53.15679564 27.19390019 -52.60641986 39.02334528 -52.54199219 50.34155273 C-52.53128379 52.57498419 -52.54193778 54.80760865 -52.5546875 57.04101562 C-52.83475784 75.26262901 -52.83475784 75.26262901 -44.28125 90.64453125 C-36.99419342 96.05147537 -28.62176902 97.28538003 -19.73046875 96.38671875 C-12.86118023 95.11676625 -7.7136953 91.96280142 -3.37062073 86.3866272 C0.68832182 79.8956621 1.17658447 72.76799836 1.15234375 65.30859375 C1.1575856 64.34859467 1.16282745 63.38859558 1.16822815 62.39950562 C1.17461391 60.38093019 1.17335639 58.36231737 1.16479492 56.34375 C1.15629152 53.28447004 1.18508494 50.22706463 1.21679688 47.16796875 C1.63425613 31.30375268 1.63425613 31.30375268 -5.16137695 17.4753418 C-11.0766406 11.6836507 -17.04497251 9.52852293 -25.21875 9.26953125 C-33.73274007 9.51646917 -40.27819587 11.50187121 -46.28125 17.64453125 Z " fill="#03D8FE" transform="translate(660.28125,148.35546875)"/>
+        <path d="M0 0 C7.74525817 7.12885354 12.05914795 15.76028516 12.5202179 26.29896545 C12.64324536 31.4885391 12.5956015 36.67686922 12.55078125 41.8671875 C12.54517755 43.78103298 12.54091111 45.69488279 12.53791809 47.60873413 C12.52653025 52.61631403 12.49711597 57.62362786 12.46380615 62.63110352 C12.43297382 67.75273033 12.41938476 72.87440064 12.40429688 77.99609375 C12.3722398 88.02357249 12.31952213 98.05078486 12.2578125 108.078125 C6.6478125 108.078125 1.0378125 108.078125 -4.7421875 108.078125 C-4.75677002 105.67152588 -4.77135254 103.26492676 -4.78637695 100.78540039 C-4.83684201 92.81052907 -4.90345787 84.83585056 -4.97790241 76.86116886 C-5.02252176 72.02880095 -5.06179629 67.19651571 -5.08862305 62.36401367 C-5.11474041 57.69542393 -5.15520193 53.02715375 -5.20537376 48.35876274 C-5.22198563 46.58273753 -5.23353513 44.80665711 -5.23980141 43.03056526 C-4.93615177 28.31695014 -4.93615177 28.31695014 -10.9296875 15.265625 C-17.8314688 9.89757288 -24.53719171 7.46795144 -33.32421875 8.33203125 C-39.84753648 9.41762086 -44.25834309 11.52331361 -48.9296875 16.328125 C-52.98763847 22.48501613 -54.188752 28.21635094 -54.17456055 35.421875 C-54.1847522 36.21308243 -54.19494385 37.00428986 -54.20544434 37.81947327 C-54.2353706 40.40576444 -54.24480873 42.99168405 -54.25390625 45.578125 C-54.27076809 47.38274344 -54.28892035 49.18735024 -54.30830383 50.99194336 C-54.35564657 55.71991336 -54.38555741 60.44783616 -54.41174316 65.17596436 C-54.44162833 70.00933144 -54.48813121 74.84253615 -54.53320312 79.67578125 C-54.61905733 89.14316254 -54.68494421 98.61052744 -54.7421875 108.078125 C-60.6821875 108.078125 -66.6221875 108.078125 -72.7421875 108.078125 C-72.7653073 93.3620288 -72.78316714 78.64593645 -72.79399967 63.92982578 C-72.79916243 57.09733526 -72.80620473 50.26485621 -72.81762695 43.43237305 C-72.82863457 36.84477195 -72.83446373 30.25717969 -72.83706474 23.66956902 C-72.909232 21.15004221 -72.91285357 18.63051609 -72.91823006 15.91568184 C-72.92543676 12.40023485 -72.9264911 8.88483789 -72.92602539 5.36938477 C-72.92962067 4.31634659 -72.93321594 3.26330841 -72.93692017 2.17835999 C-72.93485817 0.75009888 -72.93485817 0.75009888 -72.93275452 -0.51170349 C-72.93367631 -1.53939506 -72.9345981 -2.37177412 -72.86523533 -3.03406429 C-72.7421875 -4.921875 -72.7421875 -4.921875 -71.7421875 -5.921875 C-69.0648737 -6.02168714 -66.41914575 -6.06067375 -63.7421875 -6.046875 C-62.99195313 -6.05074219 -62.24171875 -6.05460938 -61.46875 -6.05859375 C-55.86879803 -6.04848553 -55.86879803 -6.04848553 -54.7421875 -4.921875 C-54.50790972 -2.90592918 -54.32882626 -0.883401 -54.1796875 1.140625 C-54.05400391 2.79771484 -54.05400391 2.79771484 -53.92578125 4.48828125 C-53.86519531 5.34292969 -53.80460937 6.19757813 -53.7421875 7.078125 C-53.44828125 6.57023438 -53.154375 6.06234375 -52.8515625 5.5390625 C-48.5406144 -1.07601304 -43.05789495 -4.16895905 -35.7421875 -6.921875 C-23.11108128 -9.56001744 -10.41959332 -7.97383669 0 0 Z " fill="#04D9FE" transform="translate(1159.7421875,149.921875)"/>
+        <path d="M0 0 C5.61 0 11.22 0 17 0 C20.68043645 8.83293807 23.70821777 17.85004358 26.71875 26.92578125 C27.26373692 28.56193744 27.80894786 30.19801903 28.35437012 31.83403015 C29.49250268 35.24998414 30.62863263 38.66659505 31.76318359 42.08374023 C33.2056891 46.4282083 34.65211763 50.77135704 36.09993744 55.11405659 C37.22507483 58.48974293 38.34863741 61.86595175 39.47169495 65.24233055 C40.00392301 66.84216091 40.53649554 68.44187673 41.06944275 70.04146767 C44.16191187 79.32798759 47.17363459 88.62828987 50 98 C50.27832169 97.10397064 50.55664337 96.20794128 50.84339905 95.28475952 C57.54457388 73.72557783 64.47214396 52.24491304 71.515625 30.79516602 C72.17589797 28.78275314 72.83605751 26.77030304 73.49609375 24.7578125 C73.8090036 23.80468674 74.12191345 22.85156097 74.44430542 21.86955261 C76.48065908 15.64682782 78.43791172 9.40781994 80.29321289 3.12841797 C81 1 81 1 82 0 C84.86267567 -0.07325168 87.700719 -0.09238205 90.5625 -0.0625 C91.36880859 -0.05798828 92.17511719 -0.05347656 93.00585938 -0.04882812 C95.00393756 -0.03700518 97.00197783 -0.01906914 99 0 C97.4993222 7.56549982 95.20352705 14.71000252 92.703125 22 C92.27250054 23.26656465 91.84229421 24.53327152 91.41247559 25.80010986 C90.26675238 29.17314115 89.11525646 32.544174 87.96250916 35.91481018 C86.77024946 39.40401134 85.58316185 42.89497128 84.39550781 46.38574219 C82.49582155 51.96716634 80.59296009 57.5474976 78.6875 63.12695312 C76.29607392 70.12947113 73.91252129 77.13464695 71.53125 84.140625 C70.56995248 86.96625889 69.60831042 89.79177504 68.6463623 92.6171875 C68.05081178 94.3664499 67.4555138 96.1157983 66.86047363 97.86523438 C66.04910534 100.2492121 65.23583033 102.63252953 64.421875 105.015625 C64.18746704 105.70529358 63.95305908 106.39496216 63.71154785 107.10552979 C62.11483124 111.77033753 62.11483124 111.77033753 61 114 C53.41 114 45.82 114 38 114 C33.50073524 102.75183811 33.50073524 102.75183811 32.02392578 98.28295898 C31.52085907 96.76872849 31.52085907 96.76872849 31.00762939 95.22390747 C30.65706482 94.15872894 30.30650024 93.09355042 29.9453125 91.99609375 C29.56671082 90.85486053 29.18810913 89.71362732 28.79803467 88.53781128 C27.57109336 84.83856227 26.3480546 81.13803564 25.125 77.4375 C23.42483046 72.30370651 21.72071355 67.17122399 20.015625 62.0390625 C19.80332623 61.39975863 19.59102745 60.76045475 19.37229538 60.10177803 C16.51424226 51.4986095 13.61943812 42.9088857 10.671875 34.3359375 C10.34375824 33.38108963 10.01564148 32.42624176 9.67758179 31.44245911 C8.15967055 27.03061931 6.63486172 22.62128357 5.10205078 18.21459961 C4.5653364 16.66002569 4.0287097 15.1054215 3.4921875 13.55078125 C3.25143494 12.86587616 3.01068237 12.18097107 2.76263428 11.47531128 C1.42290633 7.57968026 0.68797674 4.12786044 0 0 Z " fill="#03D8FE" transform="translate(709,144)"/>
+        <path d="M0 0 C8.64648345 7.44215183 12.94284194 16.55323272 14.1875 27.8828125 C14.33216073 32.23227845 14.28014602 36.52844963 14.1875 40.8828125 C8.2475 40.8828125 2.3075 40.8828125 -3.8125 40.8828125 C-4.039375 38.0984375 -4.26625 35.3140625 -4.5 32.4453125 C-5.37507872 23.7729485 -6.79366752 17.21758839 -13.75 11.4453125 C-21.63047822 7.42466035 -30.12826273 6.0930459 -38.703125 8.79296875 C-45.56615839 11.9881834 -49.27793498 15.46716777 -52.40942383 22.43725586 C-54.85060975 30.07331004 -54.29586046 38.32590138 -54.32421875 46.26171875 C-54.34108516 48.04248782 -54.35923801 49.82324514 -54.37861633 51.60398865 C-54.42590963 56.26453983 -54.45585223 60.92504329 -54.48205566 65.58575439 C-54.51196605 70.35218728 -54.55846013 75.1184561 -54.60351562 79.88476562 C-54.68931343 89.21738048 -54.75522782 98.54997896 -54.8125 107.8828125 C-60.7525 107.8828125 -66.6925 107.8828125 -72.8125 107.8828125 C-72.8356198 93.1667163 -72.85347964 78.45062395 -72.86431217 63.73451328 C-72.86947493 56.90202276 -72.87651723 50.06954371 -72.88793945 43.23706055 C-72.89894707 36.64945945 -72.90477623 30.06186719 -72.90737724 23.47425652 C-72.909232 20.95472971 -72.91285357 18.43520359 -72.91823006 15.91568184 C-72.92543676 12.40023485 -72.9264911 8.88483789 -72.92602539 5.36938477 C-72.92962067 4.31634659 -72.93321594 3.26330841 -72.93692017 2.17835999 C-72.93485817 0.75009888 -72.93485817 0.75009888 -72.93275452 -0.51170349 C-72.93367631 -1.53939506 -72.9345981 -2.37177412 -72.93554783 -3.22937679 C-72.8125 -5.1171875 -72.8125 -5.1171875 -71.8125 -6.1171875 C-69.11595146 -6.19038371 -66.44558542 -6.20961287 -63.75 -6.1796875 C-62.99138672 -6.17517578 -62.23277344 -6.17066406 -61.45117188 -6.16601562 C-59.57158129 -6.1541943 -57.69203101 -6.13625828 -55.8125 -6.1171875 C-55.4825 -1.1671875 -55.1525 3.7828125 -54.8125 8.8828125 C-54.008125 7.5215625 -53.20375 6.1603125 -52.375 4.7578125 C-48.15331187 -1.53507943 -42.82200543 -5.57670756 -35.4375 -7.4921875 C-22.65924859 -9.64035108 -10.43852277 -7.99617609 0 0 Z " fill="#03D8FE" transform="translate(1039.8125,150.1171875)"/>
+        <path d="M0 0 C8.11818197 6.21897426 14.17020187 15.1114038 15.703125 25.3046875 C16.0156439 30.98277351 15.83855452 36.61664782 15.703125 42.3046875 C10.093125 42.3046875 4.483125 42.3046875 -1.296875 42.3046875 C-1.52375 39.8709375 -1.750625 37.4371875 -1.984375 34.9296875 C-2.91079844 26.76754894 -4.81950851 19.97001974 -10.609375 13.8671875 C-18.61925379 9.21028123 -26.51382389 7.76257703 -35.66796875 9.84375 C-41.97077893 12.01220265 -46.354642 15.28400491 -49.4593811 21.23649597 C-53.32264624 30.77683083 -52.63841332 41.66994074 -52.7109375 51.78515625 C-52.7296843 53.45096254 -52.74926022 55.11675968 -52.7696228 56.782547 C-52.82057951 61.1306922 -52.86039839 65.47886806 -52.89776611 69.82714844 C-52.93803661 74.27872067 -52.98902285 78.73016938 -53.0390625 83.18164062 C-53.13538911 91.88924405 -53.21893737 100.59690006 -53.296875 109.3046875 C-58.906875 109.3046875 -64.516875 109.3046875 -70.296875 109.3046875 C-70.296875 71.6846875 -70.296875 34.0646875 -70.296875 -4.6953125 C-64.686875 -4.6953125 -59.076875 -4.6953125 -53.296875 -4.6953125 C-52.801875 2.2346875 -52.801875 2.2346875 -52.296875 9.3046875 C-51.41 8.0671875 -50.523125 6.8296875 -49.609375 5.5546875 C-37.94768489 -9.8943272 -15.40721583 -10.58463201 0 0 Z " fill="#03D8FE" transform="translate(1285.296875,148.6953125)"/>
+      </svg>
+      <div class="footer-tag">AI control infrastructure for regulated industries &nbsp;&middot;&nbsp; 26 April 2026</div>
+    </div>
+    <a href="https://governr.ai" class="footer-cta" target="_blank">Learn more at governr.ai</a>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+const TEMPLATE_SALES = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two CVSS 10.0 Vulnerabilities in AI Tooling in One Week. Neither Is in Your Inventory.</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0B1F35; --navy-mid: #122840; --navy-light: #1A3652;
+  --teal: #07CFF5; --teal-dark: #05B8D9;
+  --teal-dim: rgba(7,207,245,0.10); --teal-border: rgba(7,207,245,0.3);
+  --white: #ffffff; --off-white: #F4F7FA;
+  --text-main: #0B1F35; --text-muted: #5A7A96; --text-light: #8BA5BE;
+  --border: #DDE8F0; --gold: #F5A623;
+  --red: #DC2626;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: transparent; overflow: hidden; }
+body { font-family: 'Space Grotesk', sans-serif; color: var(--text-main); -webkit-font-smoothing: antialiased; }
+.page { width: 873px; background: var(--white); position: relative; zoom: 0.91; }
+a { color: var(--teal-dark); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.header { background: var(--navy); padding: 11px 32px; display: flex; align-items: center; justify-content: space-between; }
+.header-left .wordmark { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: var(--white); }
+.header-left .sub { font-family: 'Space Grotesk', sans-serif; font-size: 11px; color: var(--teal); margin-top: 1px; }
+.header-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal); border: 1px solid var(--teal-border); padding: 5px 12px; border-radius: 2px; }
+.hero { background: var(--navy); padding: 14px 32px 16px; border-bottom: 2px solid var(--teal); position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -40px; right: 0; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(7,207,245,0.06) 0%, transparent 70%); }
+.hero-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+.hero-headline { font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700; color: var(--white); line-height: 1.15; letter-spacing: -0.5px; margin-bottom: 8px; max-width: 640px; }
+.hero-headline span { color: var(--teal); }
+.hero-sub { font-size: 10.5px; font-weight: 300; color: rgba(255,255,255,0.70); line-height: 1.55; max-width: 620px; }
+.objection-strip { background: var(--navy-light); padding: 9px 32px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.objection-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); white-space: nowrap; flex-shrink: 0; }
+.objection-text { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 500; color: rgba(255,255,255,0.80); font-style: italic; }
+.core-arg { background: var(--white); padding: 16px 32px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-bottom: 1px solid var(--border); }
+.core-arg-panel { background: var(--off-white); border-radius: 6px; padding: 14px; border-top: 2px solid var(--teal); display: flex; flex-direction: column; }
+.core-arg-title { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--navy); line-height: 1.2; margin-bottom: 6px; }
+.core-arg-body { font-size: 11px; color: #3A5570; line-height: 1.65; flex: 1; display: flex; flex-direction: column; }
+.core-arg-body strong { color: var(--navy); font-weight: 600; }
+.analogy-box { background: var(--teal-dim); border: 1px solid var(--teal-border); border-radius: 4px; padding: 7px 10px; margin-top: 12px; }
+.analogy-label { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-dark); margin-bottom: 3px; }
+.analogy-text { font-size: 10.5px; color: #3A5570; line-height: 1.55; font-style: italic; }
+.reasons-section { padding: 14px 32px; background: var(--white); border-bottom: 1px solid var(--border); }
+.section-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--teal-dark); margin-bottom: 3px; }
+.section-title { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 700; color: var(--navy); line-height: 1.25; margin-bottom: 8px; }
+.reasons-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.reason-card { background: var(--off-white); border-radius: 6px; padding: 13px 12px; border-top: 2px solid var(--border); }
+.reason-card.primary { background: var(--navy); border-top-color: var(--teal); }
+.reason-number { font-size: 28px; font-weight: 800; color: var(--navy); line-height: 1; margin-bottom: 4px; }
+.reason-card.primary .reason-number { color: rgba(7,207,245,0.25); }
+.reason-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal-dark); margin-bottom: 4px; }
+.reason-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--navy); line-height: 1.3; margin-bottom: 5px; }
+.reason-card.primary .reason-title { color: var(--white); }
+.reason-body { font-size: 11px; color: #3A5570; line-height: 1.6; }
+.reason-card.primary .reason-body { color: rgba(255,255,255,0.75); }
+.cvss-strip { background: #FEF2F2; border-left: 3px solid var(--red); padding: 10px 16px; border-radius: 0 4px 4px 0; margin-bottom: 10px; }
+.cvss-strip-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--red); margin-bottom: 3px; }
+.cvss-strip-text { font-size: 11px; color: #7F1D1D; line-height: 1.55; }
+.evidence-section { background: var(--off-white); padding: 16px 32px; border-top: 1px solid var(--border); }
+.evidence-section p { font-size: 11px; color: #3A5570; line-height: 1.65; margin-bottom: 10px; }
+.evidence-section p:last-child { margin-bottom: 0; }
+.brief-footer { background: var(--navy); padding: 10px 32px; text-align: center; }
+.brief-footer span { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="wordmark">governr</div>
+      <div class="sub">AI Risk &amp; Governance</div>
+    </div>
+    <div class="header-badge">Governr Intelligence Brief</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-eyebrow">Phase 2 Urgency &middot; 26 April 2026</div>
+    <h1 class="hero-headline">Two CVSS 10.0 vulnerabilities in AI tooling in <span>one week</span>. You cannot patch what is not in your inventory.</h1>
+    <p class="hero-sub">n8n (CVE-2026-21858) and Flowise (CVE-2025-59528) both received maximum-severity unauthenticated RCE ratings this week. Both are widely deployed as AI workflow and agent orchestration platforms at regulated firms. Neither is typically captured by standard vulnerability management programmes &mdash; because neither is registered as an &ldquo;AI system&rdquo; in most firms&apos; inventories.</p>
+  </div>
+
+  <div class="objection-strip">
+    <span class="objection-label">Objection:</span>
+    <span class="objection-text">"We have a vulnerability management programme. If a critical CVE is disclosed, our security team patches it within SLA. This is a patching problem, not a governance problem."</span>
+  </div>
+
+  <div class="core-arg">
+    <div class="core-arg-panel">
+      <div class="core-arg-title">You can only patch systems you know exist. Shadow AI means most of these deployments are invisible to your VM programme</div>
+      <div class="core-arg-body">
+        <p>n8n and Flowise are both typically deployed by development teams or business units without central IT approval &mdash; exactly the pattern that defines shadow AI. <strong>A vulnerability management programme that relies on a known-asset inventory will not scan for tools that were never registered.</strong> CVSS 10.0 against an unregistered asset is not a patching problem; it is an open door that no one knows exists.</p>
+        <div class="analogy-box">
+          <div class="analogy-label">The Regulatory Analogy</div>
+          <div class="analogy-text">PRA SS1/23 requires firms to maintain a complete inventory of material IT assets and third-party dependencies. An unregistered AI workflow platform is a gap in that inventory &mdash; and a gap in the firm&apos;s operational resilience evidence.</div>
+        </div>
+      </div>
+    </div>
+    <div class="core-arg-panel">
+      <div class="core-arg-title">AI tooling vulnerabilities are now weaponised within hours &mdash; your patching SLA was designed for a slower world</div>
+      <div class="core-arg-body">
+        <p>LMDeploy CVE-2026-33626 was exploited within 13 hours of disclosure last week. The n8n Ni8mare vulnerability is maximum severity with no authentication requirement &mdash; the exploit surface is any internet-facing instance. <strong>Standard 30-day or 72-hour patching SLAs assume you know the asset exists and can act before weaponisation.</strong> For AI tooling, that assumption no longer holds. Continuous monitoring, not periodic patching, is the required posture.</p>
+        <div class="analogy-box">
+          <div class="analogy-label">The Regulatory Analogy</div>
+          <div class="analogy-text">DORA Article 10 requires ICT-related incident detection to be continuous, not periodic. Two CVSS 10 AI tooling CVEs in a single week are exactly the pattern DORA&apos;s continuous monitoring requirement was designed to catch.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reasons-section">
+    <div class="section-label">This Week&apos;s AI Tooling Exposure</div>
+    <div class="section-title">Two maximum-severity CVEs. 12,000+ exposed instances. One week.</div>
+    <div class="reasons-grid">
+      <div class="reason-card primary">
+        <div class="reason-number">10.0</div>
+        <div class="reason-tag">CVSS Score</div>
+        <div class="reason-title">CVE-2026-21858 &ldquo;Ni8mare&rdquo; &mdash; n8n unauthenticated RCE</div>
+        <div class="reason-body">Unauthenticated remote code execution. Full takeover of any internet-facing n8n instance. No credentials required. n8n is widely used as a workflow integration layer at banks and fintechs.</div>
+      </div>
+      <div class="reason-card">
+        <div class="reason-number">10.0</div>
+        <div class="reason-tag">CVSS Score</div>
+        <div class="reason-title">CVE-2025-59528 &mdash; Flowise code injection, 12,000+ instances exposed</div>
+        <div class="reason-body">Code injection enabling unauthenticated RCE in Flowise, the popular AI agent builder. Over 12,000 internet-facing instances identified. Active exploitation confirmed by The Hacker News.</div>
+      </div>
+      <div class="reason-card">
+        <div class="reason-number">686%</div>
+        <div class="reason-tag">Attack Volume</div>
+        <div class="reason-title">Increase in n8n webhook abuse for phishing since January 2025</div>
+        <div class="reason-body">Cisco Talos confirmed n8n webhooks have been weaponised for persistent phishing since October 2025. Volume was 686% higher in March 2026 than 14 months prior.</div>
+      </div>
+      <div class="reason-card">
+        <div class="reason-number">89%</div>
+        <div class="reason-tag">Attack Surge</div>
+        <div class="reason-title">YoY increase in AI-enabled cyberattacks in Q1 2026</div>
+        <div class="reason-body">eSecurity Planet confirms AI-enabled attacks rose 89% year-on-year. Prioritised critical risk grew 400%. AI tooling is now a primary enterprise attack surface, not a peripheral risk.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="evidence-section">
+    <div class="section-label">Evidence from Today&apos;s Digest</div>
+    <div class="section-title">Two CVSS 10.0 CVEs in one week confirms AI tooling is now a first-class attack surface</div>
+    <p><a href="https://www.cyera.com/research/ni8mare-unauthenticated-remote-code-execution-in-n8n-cve-2026-21858" target="_blank">Cyera Research&apos;s Ni8mare disclosure</a> (April 2026) confirmed CVE-2026-21858 as a maximum-severity unauthenticated RCE in n8n. Separately, <a href="https://thehackernews.com/2026/04/flowise-ai-agent-builder-under-active.html" target="_blank">The Hacker News confirmed active exploitation</a> of CVE-2025-59528 against 12,000+ internet-facing Flowise instances. Both platforms are deployed as AI workflow and agent orchestration tools &mdash; exactly the layer governr&apos;s shadow AI detection is designed to discover and monitor.</p>
+    <p><a href="https://thehackernews.com/2026/04/n8n-webhooks-abused-since-october-2025.html" target="_blank">The Hacker News and Cisco Talos</a> confirmed that n8n webhook abuse for phishing has been running since October 2025 &mdash; a six-month window during which most firms had no visibility. The attack surface for AI workflow automation tools is not hypothetical. It is active, confirmed, and escalating.</p>
+    <p>The conversation to have with CISOs this week: <em>&ldquo;Your VM programme patches known assets. Shadow AI means n8n and Flowise are not on your known-asset list. governr&apos;s Phase 1 discovery finds them; Phase 2&apos;s anomaly detection flags the exploitation patterns. You cannot govern what you cannot see.&rdquo;</em></p>
+  </div>
+
+  <div class="brief-footer">
+    <span>governr &middot; Two CVSS 10.0 in AI Tooling: The Shadow AI Exposure &middot; 26 April 2026</span>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let generatedDigest = null;
+let generatedSales = null;
+let generatedExec = null;
+let currentTab = 'digest';
+
+// ─────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────
+function log(msg, type = 'active') {
+  const el = document.getElementById('progressLog');
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function clearError() {
+  document.getElementById('errorBox').classList.remove('visible');
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['digest', 'sales', 'exec'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.output-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+}
+
+function renderInFrame(frameId, html) {
+  const frame = document.getElementById(frameId);
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  // Adjust height after render
+  setTimeout(() => {
+    try {
+      const h = doc.body.scrollHeight;
+      frame.style.height = Math.max(h + 40, 600) + 'px';
+    } catch(e) {}
+  }, 300);
+}
+
+async function shareOutput(tab) {
+  const htmlMap = {digest: generatedDigest, sales: generatedSales, exec: generatedExec};
+  const nameMap = {
+    digest: `governr-digest-${new Date().toISOString().slice(0,10)}.html`,
+    sales:  `governr-sales-brief-${new Date().toISOString().slice(0,10)}.html`,
+    exec:   `governr-exec-briefing-${new Date().toISOString().slice(0,10)}.html`
+  };
+  const html = htmlMap[tab];
+  if (!html) { alert('Run the digest first.'); return; }
+
+  try {
+    const file = new File([html], nameMap[tab], {type: 'text/html'});
+    if (navigator.canShare && navigator.canShare({files: [file]})) {
+      await navigator.share({title: nameMap[tab], files: [file]});
+      return;
+    }
+  } catch(e) {
+    if (e.name === 'AbortError') return;
+  }
+
+  // HTTPS fallback: Blob download
+  try {
+    const blob = new Blob([html], {type: 'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nameMap[tab];
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  } catch(e) {
+    alert('Share failed: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// API CALL
+// ─────────────────────────────────────────────
+async function callClaude(apiKey, systemPrompt, userPrompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 16000,
+      tools: [{type: 'web_search_20250305', name: 'web_search'}],
+      system: systemPrompt,
+      messages: [{role: 'user', content: userPrompt}]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  // Extract all text blocks from response
+  const textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text);
+  return textBlocks.join('\n');
+}
+
+// ─────────────────────────────────────────────
+// INJECTION HELPERS
+// Pure string replacement — Claude never rewrites HTML structure
+// ─────────────────────────────────────────────
+
+function safeReplace(html, pattern, replacement, label) {
+  const result = html.replace(pattern, replacement);
+  if (result === html) {
+    console.warn(`safeReplace: pattern did not match — ${label}`);
+    log(`Warning: template section "${label}" did not update — pattern mismatch`, 'error');
+  }
+  return result;
+}
+function injectDigest(data) {
+  let html = TEMPLATE_DIGEST;
+
+  // Today's date
+  const today = formatDate(new Date());
+  const dayName = new Date().toLocaleDateString('en-GB', {weekday: 'long'});
+  html = html.replace(/Sunday, 26 April 2026/g, `${dayName}, ${today}`);
+  html = html.replace(/26 April 2026/g, today);
+
+  // KPI values
+  html = html.replace(
+    /<div class="kpi-strip">[\s\S]*?<\/div>\s*<div class="window-notice">/,
+    buildDigestKpiStrip(data) + '\n\n<div class="window-notice">'
+  );
+
+  // Window notice
+  html = html.replace(
+    /<div class="window-notice">[\s\S]*?<\/div>/,
+    `<div class="window-notice">All story cards cover the 24-hour window ending ${today} at 08:00 BST. Stories outside this window do not appear in this digest.</div>`
+  );
+
+  // News cards
+  html = html.replace(
+    /<div class="cards-grid">[\s\S]*?<\/div>\s*<\/div>\s*<div class="section">\s*<div class="section-label">Open Source/,
+    `<div class="cards-grid">\n${buildNewsCards(data.stories)}\n  </div>\n</div>\n\n<div class="section">\n  <div class="section-label">Open Source`
+  );
+
+  // Open source repos
+  if (data.repos && data.repos.length > 0) {
+    html = html.replace(
+      /<div class="repo-list">[\s\S]*?<\/div>\s*<\/div>\s*<div class="section">\s*<div class="section-label">Breach/,
+      `<div class="repo-list">\n${buildRepoItems(data.repos)}\n  </div>\n</div>\n\n<div class="section">\n  <div class="section-label">Breach`
+    );
+  }
+
+  // Breach table rows
+  html = html.replace(
+    /<tbody>[\s\S]*?<\/tbody>/,
+    `<tbody>\n${buildBreachRows(data.breaches)}\n        </tbody>`
+  );
+
+  // Intel panel sections — split on footer marker (regex fails on nested divs)
+  const footerMarker = '<div class="footer">';
+  const intelMarker = '<div class="intel-panel">';
+  const intelStart = html.indexOf(intelMarker);
+  const footerStart = html.lastIndexOf(footerMarker);
+  if (intelStart !== -1 && footerStart !== -1 && footerStart > intelStart) {
+    html = html.slice(0, intelStart) + buildIntelPanel(data) + '\n\n' + html.slice(footerStart);
+  }
+
+  // Footer
+  html = html.replace(
+    /governr AI News Digest &mdash; Edition #\d+ &mdash; [\d A-Za-z]+/,
+    `governr AI News Digest &mdash; ${today}`
+  );
+
+  return html;
+}
+
+function injectExec(data) {
+  let html = TEMPLATE_EXEC;
+  const today = formatDate(new Date());
+  const dayName = new Date().toLocaleDateString('en-GB', {weekday: 'long'});
+
+  // Dates
+  html = html.replace(/Sunday, 26 April 2026/g, `${dayName}, ${today}`);
+  html = html.replace(/26 April 2026/g, today);
+
+  // Countdown days
+  const daysToAug = daysUntil(new Date('2026-08-02'));
+  html = html.replace(/<div class="countdown-n">98<\/div>/, `<div class="countdown-n">${daysToAug}</div>`);
+
+  // KPI strip — split on comment marker (more reliable than regex on large templates)
+  const kpiMarker = '<!-- TODAY';
+  const kpiDivMarker = '<div class="kpi-strip">';
+  const kpiStart = html.indexOf(kpiDivMarker);
+  const kpiEnd = html.indexOf(kpiMarker);
+  if (kpiStart !== -1 && kpiEnd !== -1 && kpiEnd > kpiStart) {
+    html = html.slice(0, kpiStart) + buildExecKpiStrip(data) + '\n\n  ' + html.slice(kpiEnd);
+  } else {
+    log('Warning: exec KPI strip section not found in template', 'error');
+  }
+
+  // Stories grid — split on comment marker
+  const storiesMarker = '<!-- ACTION';
+  const storiesDivMarker = '<div class="stories-grid">';
+  const storiesStart = html.indexOf(storiesDivMarker);
+  const storiesEnd = html.indexOf(storiesMarker);
+  if (storiesStart !== -1 && storiesEnd !== -1 && storiesEnd > storiesStart) {
+    html = html.slice(0, storiesStart) + `<div class="stories-grid">\n${buildExecStoryCards(data.stories)}\n      </div>\n    </div>\n\n    ` + html.slice(storiesEnd);
+  } else {
+    log('Warning: exec stories-grid section not found in template', 'error');
+  }
+
+  // Role cards — split on comment marker
+  const rolesMarker = '<!-- FOOTER';
+  const rolesDivMarker = '<div class="roles-grid">';
+  const rolesStart = html.indexOf(rolesDivMarker);
+  const rolesEnd = html.indexOf(rolesMarker);
+  if (rolesStart !== -1 && rolesEnd !== -1 && rolesEnd > rolesStart) {
+    html = html.slice(0, rolesStart) + `<div class="roles-grid">\n${buildRoleCards(data.roles)}\n    </div>\n    </div>\n\n    ` + html.slice(rolesEnd);
+  } else {
+    log('Warning: exec roles-grid section not found in template', 'error');
+  }
+
+  return html;
+}
+
+function injectSales(data) {
+  let html = TEMPLATE_SALES;
+  const today = formatDate(new Date());
+
+  // Date
+  html = html.replace(/26 April 2026/g, today);
+
+  // Hero headline and sub
+  html = html.replace(
+    /<div class="hero-eyebrow">[\s\S]*?<\/div>/,
+    `<div class="hero-eyebrow">governr Intelligence &middot; ${today}</div>`
+  );
+  html = html.replace(
+    /<h1 class="hero-headline">[\s\S]*?<\/h1>/,
+    `<h1 class="hero-headline">${data.headline}</h1>`
+  );
+  html = html.replace(
+    /<p class="hero-sub">[\s\S]*?<\/p>/,
+    `<p class="hero-sub">${data.heroSub}</p>`
+  );
+
+  // Objection
+  html = html.replace(
+    /<span class="objection-text">[\s\S]*?<\/span>/,
+    `<span class="objection-text">"${data.objection}"</span>`
+  );
+
+  // Core argument panels
+  html = html.replace(
+    /<div class="core-arg">[\s\S]*?<\/div>\s*<div class="reasons-section">/,
+    buildCoreArgPanels(data.coreArgs) + '\n\n  <div class="reasons-section">'
+  );
+
+  // Evidence cards (reasons-grid)
+  html = html.replace(
+    /<div class="reasons-grid">[\s\S]*?<\/div>\s*<\/div>\s*<div class="evidence-section">/,
+    `<div class="reasons-grid">\n${buildEvidenceCards(data.evidenceCards)}\n      </div>\n    </div>\n\n  <div class="evidence-section">`
+  );
+
+  // Evidence section
+  html = html.replace(
+    /<div class="evidence-section">[\s\S]*?<\/div>\s*<div class="brief-footer">/,
+    buildEvidenceSection(data) + '\n\n  <div class="brief-footer">'
+  );
+
+  // Footer
+  html = html.replace(
+    /<span>governr &middot;[\s\S]*?<\/span>/,
+    `<span>governr &middot; ${data.briefTitle} &middot; ${today}</span>`
+  );
+
+  return html;
+}
+
+// ─────────────────────────────────────────────
+// HTML BUILDERS — insert into template slots
+// ─────────────────────────────────────────────
+function buildDigestKpiStrip(data) {
+  const days = daysUntil(new Date('2026-08-02'));
+  const stories = (data.stories || []).length;
+  const repos = (data.repos || []).length;
+  const breaches = (data.breaches || []).length;
+  const signals = stories + repos + breaches;
+  return `<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-value">${stories}</span><span class="kpi-label">Stories</span></div>
+  <div class="kpi-item"><span class="kpi-value">${repos}</span><span class="kpi-label">Open Source Repos</span></div>
+  <div class="kpi-item"><span class="kpi-value">${breaches}</span><span class="kpi-label">Breach / Intel Alerts</span></div>
+  <div class="kpi-item"><span class="kpi-value red">${days}</span><span class="kpi-label">Days to EU AI Act Aug Deadline</span></div>
+  <div class="kpi-item"><span class="kpi-value">${signals}</span><span class="kpi-label">Intelligence Signals</span></div>
+</div>`;
+}
+
+function buildExecKpiStrip(data) {
+  const kpis = data.kpis || [];
+  const items = kpis.map(k => `    <div class="kpi-item">
+      <div class="kpi-value${k.warn ? ' warn' : k.ok ? ' ok' : ''}">${k.value}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-context">${k.context || ''}</div>
+    </div>`).join('\n');
+  return `  <div class="kpi-strip">\n${items}\n  </div>`;
+}
+
+const SIGNAL_CLASSES = {
+  'Atlas Validates': 'signal-validates',
+  'Agent Controls Urgency': 'signal-phase2',
+  'Decision Intelligence Signal': 'signal-phase3',
+  'Sales Signal': 'signal-sales',
+  'Timing Risk': 'signal-risk',
+  'Watch': 'signal-label',
+  'Competitive': 'signal-sales',
+};
+
+function buildNewsCards(stories) {
+  return (stories || []).map(s => {
+    const chipClass = s.recency === 'TODAY' ? 'chip-today' : 'chip-yest';
+    const sigClass = SIGNAL_CLASSES[s.signal] || 'signal-label';
+    return `    <div class="card">
+      <div class="card-meta">
+        <span class="${chipClass}">${s.recency}</span>
+        <span class="signal-label ${sigClass}">${s.signal}</span>
+      </div>
+      <h3>${s.headline}</h3>
+      <p>${s.body}</p>
+      <div class="card-source">Source: ${s.sources}</div>
+    </div>`;
+  }).join('\n\n');
+}
+
+function buildRepoItems(repos) {
+  return (repos || []).map(r => `    <div class="repo-item">
+      <div class="repo-header">
+        <a class="repo-name" href="${r.url}" target="_blank">${r.name}</a>
+        <span class="repo-badge badge-${r.badge || 'watch'}">${r.badgeLabel || 'Watch'}</span>
+      </div>
+      <div class="repo-desc">${r.desc}</div>
+      <div class="repo-stars">&#9733; ${r.stars} &nbsp;&bull;&nbsp; ${r.lang} &nbsp;&bull;&nbsp; ${r.licence}</div>
+      <div class="repo-why">${r.why}</div>
+      <div class="phase-boxes">
+        <div class="phase-box"><span class="phase-box-label">Atlas</span>${r.atlas}</div>
+        <div class="phase-box"><span class="phase-box-label">Agent Controls</span>${r.agentControls}</div>
+        <div class="phase-box"><span class="phase-box-label">Decision Intelligence</span>${r.decisionIntel}</div>
+      </div>
+    </div>`).join('\n\n');
+}
+
+function buildBreachRows(breaches) {
+  return (breaches || []).map(b => {
+    const scoreClass = parseFloat(b.cvss) >= 9 ? 'cvss-crit' : parseFloat(b.cvss) >= 7 ? 'cvss-high' : 'cvss-grey';
+    return `        <tr>
+          <td><a href="${b.url}" target="_blank"><strong>${b.id}</strong></a></td>
+          <td><span class="cvss-badge ${scoreClass}">${b.cvss}</span></td>
+          <td>${b.system}</td>
+          <td>${b.vector}</td>
+          <td>${b.relevance}</td>
+        </tr>`;
+  }).join('\n');
+}
+
+function buildIntelPanel(data) {
+  const s1 = (data.validates || []).map(v => `
+    <div class="intel-item">
+      <div class="intel-item-title">${v.title}</div>
+      <div class="intel-item-body">${v.body}</div>
+    </div>`).join('');
+
+  const s2Phases = [];
+  if (data.atlas) s2Phases.push({label: 'Atlas', items: data.atlas});
+  if (data.agentControls) s2Phases.push({label: 'Agent Controls', items: data.agentControls});
+  if (data.decisionIntel) s2Phases.push({label: 'Decision Intelligence', items: data.decisionIntel});
+  const s2 = s2Phases.map(ph => (ph.items || []).map(i => `
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier tier-quarter">${ph.label}</span> ${i.title}</div>
+      <div class="intel-item-body">${i.body}</div>
+    </div>`).join('')).join('');
+
+  const s3 = (data.honest || []).map(h => `
+    <div class="intel-item">
+      <div class="intel-item-title">${h.title}</div>
+      <div class="intel-item-body">${h.body}</div>
+    </div>`).join('');
+
+  const s4 = `
+    <div class="intel-item">
+      <div class="intel-item-title">${data.verdict?.title || "Today's verdict"}</div>
+      <div class="intel-item-body">${data.verdict?.body || ''}</div>
+    </div>`;
+
+  const s5 = (data.gtm || []).map(g => {
+    const tierMap = {NOW: 'tier-now', '6WKS': 'tier-aug', SOON: 'tier-q3', WATCH: 'tier-phase3', BUILD: 'tier-build'};
+    const tierClass = tierMap[g.tier] || 'tier-quarter';
+    return `
+    <div class="intel-item">
+      <div class="intel-item-title"><span class="tier ${tierClass}">${g.tier}</span> ${g.title}</div>
+      <div class="intel-item-body">${g.body}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="intel-panel">
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#3fb950;">1 &mdash; What Today Validates</div>${s1}
+  </div>
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#d29922;">2 &mdash; What the Phases Need to Know</div>${s2}
+  </div>
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#f85149;">3 &mdash; Where to Be Honest With Yourself</div>${s3}
+  </div>
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#58a6ff;">4 &mdash; Today's Honest Verdict</div>${s4}
+  </div>
+  <div class="intel-block">
+    <div class="intel-block-title" style="color:#22d3ee;">5 &mdash; GTM &mdash; Market Opportunities and Priorities</div>${s5}
+  </div>
+</div>`;
+}
+
+const SIG_CLASSES_EXEC = {
+  'Governance Gap': 'sig-phase2',
+  'Regulatory Opportunity': 'sig-validates',
+  'Compliance Risk': 'sig-risk',
+  'Active Threat': 'sig-risk',
+  'Emerging Risk': 'sig-watch',
+  'Industry Insight': 'sig-phase3',
+};
+
+function buildExecStoryCards(stories) {
+  return (stories || []).slice(0, 6).map(s => {
+    const signal = s.signal_exec || s.signal || 'Emerging Risk';
+    const body = s.body_exec || s.body || '';
+    const sources = s.sources_exec || s.sources || '';
+    const sigClass = SIG_CLASSES_EXEC[signal] || 'sig-watch';
+    return `      <div class="story-card">
+        <div class="story-card-top">
+          <div class="story-headline">${s.headline}</div>
+          <span class="sig ${sigClass}">${signal}</span>
+        </div>
+        <div class="story-body">${body}</div>
+        <div class="story-source">${sources}</div>
+      </div>`;
+  }).join('\n\n');
+}
+
+function buildRoleCards(roles) {
+  const icons = {
+    CRO: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L2 4v4c0 3.31 2.56 5.77 6 6.5 3.44-.73 6-3.19 6-6.5V4L8 1.5z" stroke="#07CFF5" stroke-width="1.25" stroke-linejoin="round"/><path d="M5.5 8l1.75 1.75L10.5 6.5" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    CISO: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="7" width="9" height="7" rx="1.25" stroke="#07CFF5" stroke-width="1.25"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round"/><circle cx="8" cy="10.5" r="1" fill="#07CFF5"/></svg>`,
+    CTO: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5.5 5L2.5 8l3 3" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 5l3 3-3 3" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 3.5l-2 9" stroke="#07CFF5" stroke-width="1.25" stroke-linecap="round"/></svg>`,
+    COO: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="9" width="2.5" height="4.5" rx="0.5" fill="#07CFF5"/><rect x="6.75" y="6" width="2.5" height="7.5" rx="0.5" fill="#07CFF5"/><rect x="11.5" y="2.5" width="2.5" height="11" rx="0.5" fill="#07CFF5"/></svg>`,
+  };
+  const subtitles = {CRO: 'Chief Risk Officer', CISO: 'Chief Information Security Officer', CTO: 'Chief Technology Officer', COO: 'Chief Operating Officer'};
+  const urgClass = {Now: 'urg-now', Soon: 'urg-soon', Watch: 'urg-watch', '6 wks': 'urg-now'};
+
+  return (roles || []).map(r => {
+    const actions = (r.actions || []).map(a => `          <div class="role-action">
+            <div class="action-dot"></div>
+            <div class="action-text">${a.text} <span class="action-urgency ${urgClass[a.urgency] || 'urg-watch'}">${a.urgency}</span></div>
+          </div>`).join('\n');
+    return `      <div class="role-card">
+        <div class="role-header">
+          <div class="role-icon">${icons[r.role] || ''}</div>
+          <div>
+            <div class="role-title">${r.role}</div>
+            <div class="role-subtitle">${subtitles[r.role] || ''}</div>
+          </div>
+        </div>
+        <div class="role-body">
+${actions}
+        </div>
+      </div>`;
+  }).join('\n\n');
+}
+
+function buildCoreArgPanels(args) {
+  return `  <div class="core-arg">
+${(args || []).slice(0,2).map(a => `    <div class="core-arg-panel">
+      <div class="core-arg-title">${a.title}</div>
+      <div class="core-arg-body">
+        <p>${a.body}</p>
+        <div class="analogy-box">
+          <div class="analogy-label">The Regulatory Analogy</div>
+          <div class="analogy-text">${a.analogy}</div>
+        </div>
+      </div>
+    </div>`).join('\n')}
+  </div>`;
+}
+
+function buildEvidenceCards(cards) {
+  return (cards || []).slice(0,4).map(c => `      <div class="reason-card${c.primary ? ' primary' : ''}">
+        <div class="reason-number">${c.stat}</div>
+        <div class="reason-tag">${c.tag}</div>
+        <div class="reason-title">${c.title}</div>
+        <div class="reason-body">${c.body}</div>
+      </div>`).join('\n');
+}
+
+function buildEvidenceSection(data) {
+  const paras = (data.evidenceParas || []).map(p => `    <p>${p}</p>`).join('\n');
+  return `  <div class="evidence-section">
+    <div class="section-label">Evidence from Today's Intelligence</div>
+    <div class="section-title">${data.evidenceTitle || ''}</div>
+${paras}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// DATE HELPERS
+// ─────────────────────────────────────────────
+function formatDate(d) {
+  return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric'});
+}
+
+function daysUntil(target) {
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  target.setHours(0,0,0,0);
+  return Math.max(0, Math.round((target - now) / 86400000));
+}
+
+// ─────────────────────────────────────────────
+// MAIN RUN FUNCTION
+// ─────────────────────────────────────────────
+async function runDigest() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { showError('Please enter your Anthropic API key above.'); return; }
+
+  clearError();
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('progress').classList.add('visible');
+  document.getElementById('outputs').classList.remove('visible');
+  document.getElementById('progressLog').innerHTML = '';
+
+  const today = formatDate(new Date());
+
+  try {
+    // ── STEP 1: Search and gather news ──
+    log(`Searching primary sources for news published in last 24 hours...`);
+    setProgress(10);
+
+    const newsSystem = `You are an intelligence analyst for governr, an AI risk and governance company serving regulated financial institutions.
+
+Your job is to search broadly across the web for today's AI risk and governance news — stories published in the last 24 hours only. Do not limit yourself to any specific list of sites. Search widely using multiple queries to find at least 6 strong stories. Good sources include but are not limited to: The Hacker News, VentureBeat, MIT Technology Review, FinTech Global, SC Media, Cisco Talos, JDSupra, Cybersecurity Dive, eSecurity Planet, Plural Policy, FinCEN, Reuters, FT, Bloomberg, Wired, Ars Technica, Dark Reading, SecurityWeek, BankingDive, American Banker, Finextra, and any other credible publication covering relevant topics.
+
+Use multiple search queries across these topic areas to find stories:
+- AI agent security vulnerabilities and CVEs (AI tooling: n8n, Flowise, LangChain, CrewAI, MCP tools, agent frameworks)
+- AI governance and regulation (EU AI Act, FCA, PRA, DORA, US state AI laws, FinCEN, SEC, UK regulatory guidance)
+- Agentic AI developments relevant to financial services
+- Financial services AI adoption, compliance, enforcement actions, vendor news
+- Open source AI agent repos trending on GitHub
+
+You MUST return exactly 6 stories. No more, no fewer. Search until you have found at least 6 strong, relevant stories from the last 24 hours, then select the best 6. If your first searches don't find 6, search again with different queries. Do not return fewer than 6 stories under any circumstances. Do not return more than 6 stories under any circumstances.
+
+Return ONLY valid JSON. No markdown. No preamble. No backticks.
+
+Return this exact structure:
+{
+  "stories": [
+    {
+      "recency": "TODAY",
+      "signal": "Agent Controls Urgency",
+      "headline": "string",
+      "body": "3-4 sentence summary with governr commercial framing",
+      "sources": "HTML: <a href='URL' target='_blank'>Source Name</a>, Date",
+      "signal_exec": "Governance Gap",
+      "body_exec": "2 sentence version for executive audience",
+      "sources_exec": "HTML: <a href='URL' target='_blank'>Source Name</a> &middot; Date"
+    }
+  ],
+  "repos": [
+    {
+      "name": "org/repo",
+      "url": "https://github.com/...",
+      "desc": "string",
+      "stars": "~12k stars",
+      "lang": "Python",
+      "licence": "MIT",
+      "why": "string",
+      "badge": "watch",
+      "badgeLabel": "Watch",
+      "atlas": "string",
+      "agentControls": "string",
+      "decisionIntel": "string"
+    }
+  ],
+  "breaches": [
+    {
+      "id": "CVE-XXXX-XXXXX",
+      "url": "https://...",
+      "cvss": "10.0",
+      "system": "n8n AI Workflow",
+      "vector": "string",
+      "relevance": "string"
+    }
+  ],
+  "kpis": [
+    {"value": "2", "label": "CVSS 10.0 CVEs This Week", "context": "AI tooling: patch now", "warn": true},
+    {"value": "70%+", "label": "Banks Running Agentic AI", "context": "Most without governance layer"},
+    {"value": "98", "label": "Days to EU AI Act", "context": "2 August 2026 deadline"},
+    {"value": "5", "label": "RSAC Frameworks Shipped", "context": "None include action audit", "ok": true}
+  ],
+  "validates": [
+    {"title": "string", "body": "string"}
+  ],
+  "atlas": [{"title": "string", "body": "string"}],
+  "agentControls": [{"title": "string", "body": "string"}],
+  "decisionIntel": [{"title": "string", "body": "string"}],
+  "honest": [{"title": "string", "body": "string"}],
+  "verdict": {"title": "string", "body": "string"},
+  "gtm": [
+    {"tier": "NOW", "title": "string", "body": "string"}
+  ],
+  "roles": [
+    {
+      "role": "CRO",
+      "actions": [
+        {"text": "string", "urgency": "Now"},
+        {"text": "string", "urgency": "Soon"},
+        {"text": "string", "urgency": "Watch"}
+      ]
+    },
+    {"role": "CISO", "actions": [{"text":"string","urgency":"Now"},{"text":"string","urgency":"Now"},{"text":"string","urgency":"Soon"}]},
+    {"role": "CTO", "actions": [{"text":"string","urgency":"Now"},{"text":"string","urgency":"Soon"},{"text":"string","urgency":"Watch"}]},
+    {"role": "COO", "actions": [{"text":"string","urgency":"Now"},{"text":"string","urgency":"Soon"},{"text":"string","urgency":"Soon"}]}
+  ],
+  "headline": "Sales brief hero headline — the main threat or regulatory hook in 15 words max",
+  "heroSub": "2 sentence sub-headline with context for sceptical CISO audience",
+  "objection": "The most common prospect objection to this story, as they would say it",
+  "briefTitle": "Sales brief title for footer",
+  "coreArgs": [
+    {
+      "title": "Panel 1 title rebutting the objection",
+      "body": "Panel 1 argument",
+      "analogy": "Regulatory analogy (PRA/FCA/DORA/EU AI Act)"
+    },
+    {
+      "title": "Panel 2 title rebutting the objection from different angle",
+      "body": "Panel 2 argument",
+      "analogy": "Regulatory analogy"
+    }
+  ],
+  "evidenceCards": [
+    {"stat": "10.0", "tag": "CVSS Score", "title": "string", "body": "string", "primary": true},
+    {"stat": "686%", "tag": "Attack Volume", "title": "string", "body": "string"},
+    {"stat": "89%", "tag": "Attack Surge", "title": "string", "body": "string"},
+    {"stat": "12k+", "tag": "Exposed Instances", "title": "string", "body": "string"}
+  ],
+  "evidenceTitle": "string",
+  "evidenceParas": ["paragraph 1 with hyperlinks", "paragraph 2 with hyperlinks", "paragraph 3 with sales conversation opener"]
+}
+
+Signal options for stories[].signal: Atlas Validates, Agent Controls Urgency, Decision Intelligence Signal, Sales Signal, Timing Risk, Watch, Competitive
+Signal options for stories[].signal_exec: Governance Gap, Regulatory Opportunity, Compliance Risk, Active Threat, Emerging Risk, Industry Insight
+
+Rules:
+- 24 hours only. Do not include older stories.
+- EXACTLY 6 stories. No more, no fewer. Select the best 6 from everything you find.
+- JSON must be valid. Escape all special characters in string values. Use double quotes for JSON strings. Do not use smart quotes, curly quotes, or unescaped apostrophes inside string values. Replace any apostrophe inside a string value with \' or reword to avoid it. Do not include raw newlines inside string values.
+- Every source must have a real URL you found via search.
+- governr is always lower case.
+- UK English.
+- No em dashes.
+- Pick the single most commercially compelling story for the sales brief sections.`;
+
+    const newsUser = `Today is ${today}. Search broadly across the web for AI risk and governance stories published in the last 24 hours. Use multiple search queries. You must return exactly 6 stories — the best 6 you find. Search until you have at least 6 candidates, then select the strongest 6. Return the complete JSON structure with exactly 6 stories.`;
+
+    log(`Searching sources and building intelligence...`);
+    setProgress(20);
+
+    const rawResponse = await callClaude(apiKey, newsSystem, newsUser);
+
+    log(`Processing search results...`, 'done');
+    setProgress(60);
+
+    // Parse JSON — strip any markdown fences
+    let jsonStr = rawResponse.trim();
+    jsonStr = jsonStr.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    // Find the JSON object
+    const jsonStart = jsonStr.indexOf('{');
+    const jsonEnd = jsonStr.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) throw new Error('Could not find JSON in response. Raw: ' + jsonStr.slice(0, 200));
+    jsonStr = jsonStr.slice(jsonStart, jsonEnd + 1);
+
+    let data;
+    // Attempt 1: parse as-is
+    try {
+      data = JSON.parse(jsonStr);
+    } catch(e1) {
+      // Attempt 2: sanitise control chars, smart quotes, then retry
+      try {
+        let cleaned = jsonStr
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+          .replace(/[\u2018\u2019]/g, "\'")
+          .replace(/[\u201C\u201D]/g, '\\"')
+          .replace(/\u2014/g, '-')
+          .replace(/\u00A0/g, ' ');
+        data = JSON.parse(cleaned);
+      } catch(e2) {
+        // Attempt 3: Function constructor handles trailing commas etc
+        try {
+          data = Function('"use strict"; return (' + jsonStr + ')')();
+        } catch(e3) {
+          throw new Error('JSON parse failed after 3 attempts: ' + e1.message + '\nRaw snippet: ' + jsonStr.slice(0, 400));
+        }
+      }
+    }
+
+    const storyCount = (data.stories||[]).length;
+    log(`Found ${storyCount} stories, ${(data.breaches||[]).length} breach alerts, ${(data.repos||[]).length} repos`, 'done');
+    if (storyCount !== 6) {
+      log(`Warning: ${storyCount} stories returned — expected exactly 6. Consider re-running.`, 'error');
+    }
+    setProgress(70);
+
+    // ── STEP 2: Inject into templates ──
+    log(`Injecting content into digest template...`);
+    generatedDigest = injectDigest(data);
+    setProgress(80);
+
+    log(`Injecting content into sales brief template...`);
+    generatedSales = injectSales(data);
+    setProgress(87);
+
+    log(`Injecting content into exec briefing template...`);
+    generatedExec = injectExec(data);
+    setProgress(95);
+
+    // ── STEP 3: Render ──
+    log(`Rendering outputs...`);
+    renderInFrame('frame-digest', generatedDigest);
+    renderInFrame('frame-sales', generatedSales);
+    renderInFrame('frame-exec', generatedExec);
+
+    setProgress(100);
+    log(`All three outputs ready.`, 'done');
+
+    document.getElementById('outputs').classList.add('visible');
+
+  } catch(err) {
+    log(`Error: ${err.message}`, 'error');
+    showError(`Something went wrong: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
