@@ -2015,6 +2015,7 @@ Signal options for stories[].signal_exec: Governance Gap, Regulatory Opportunity
 Rules:
 - 24 hours only. Do not include older stories.
 - EXACTLY 6 stories. No more, no fewer. Select the best 6 from everything you find.
+- EXACTLY 4 open source repos. Search GitHub trending to find 4. No more, no fewer.
 - JSON must be valid. Escape all special characters in string values. Use double quotes for JSON strings. Do not use smart quotes, curly quotes, or unescaped apostrophes inside string values. Replace any apostrophe inside a string value with \' or reword to avoid it. Do not include raw newlines inside string values.
 - Every source must have a real URL you found via search.
 - governr is always lower case.
@@ -2066,58 +2067,103 @@ Rules:
     }
 
     // ── CODE-ENFORCED RULES ──────────────────────────────
-    // These run after the API responds. Prompt instructions
-    // are suggestions; these checks are not.
+    // Rules enforced here in code cannot be ignored by the model.
 
-    // 1. Strip stories older than 24 hours using published date
+    // Cutoff: midnight yesterday
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 1);
     cutoff.setHours(0, 0, 0, 0);
 
+    // 1. DATE FILTER — published field only, no exceptions
     const allStories = (data.stories || []);
-    const freshStories = allStories.filter(s => {
-      // No published date — strip it, don't assume it's fresh
-      if (!s.published) {
-        log(`Stripped story with no published date: "${(s.headline||'').slice(0,60)}"`, 'error');
-        return false;
-      }
+    data.stories = allStories.filter(s => {
+      if (!s.published) return false;
       const pub = new Date(s.published);
-      // Unparseable date — strip it
-      if (isNaN(pub)) {
-        log(`Stripped story with unreadable date "${s.published}": "${(s.headline||'').slice(0,60)}"`, 'error');
-        return false;
-      }
-      // Older than 24 hours — strip it
+      if (isNaN(pub)) return false;
       if (pub < cutoff) {
-        log(`Stripped old story (${s.published}): "${(s.headline||'').slice(0,60)}"`, 'error');
+        log(`Stripped (${s.published}): "${(s.headline||'').slice(0,60)}"`, 'error');
         return false;
       }
       return true;
     });
+    const stripped = allStories.length - data.stories.length;
+    if (stripped > 0) log(`Stripped ${stripped} story/stories — old or no date`, 'error');
 
-    const staleCount = allStories.length - freshStories.length;
-    if (staleCount > 0) {
-      log(`Removed ${staleCount} story/stories — too old or missing date`, 'error');
-    }
-    data.stories = freshStories;
+    // 2. STORY COUNT — hard cap at 6
+    if (data.stories.length > 6) data.stories = data.stories.slice(0, 6);
+    if (data.stories.length < 6) log(`Only ${data.stories.length} valid stories — consider re-running`, 'error');
 
-    // 2. Enforce exactly 6 stories
-    if (data.stories.length > 6) {
-      data.stories = data.stories.slice(0, 6);
-      log(`Trimmed to 6 stories`, 'done');
-    }
-    if (data.stories.length < 6) {
-      log(`Warning: only ${data.stories.length} valid stories in last 24 hours — consider re-running`, 'error');
-    }
-
-    // 3. Enforce exactly 4 repos
+    // 3. REPO COUNT — hard cap at 4
     const allRepos = (data.repos || []);
-    if (allRepos.length > 4) {
-      data.repos = allRepos.slice(0, 4);
+    if (allRepos.length > 4) data.repos = allRepos.slice(0, 4);
+    if (allRepos.length < 4) log(`Only ${allRepos.length} repos — expected 4`, 'error');
+
+    // 4. SOURCE URL — strip stories with no href in sources field
+    data.stories = data.stories.filter(s => {
+      const hasUrl = (s.sources || '').includes('href=');
+      if (!hasUrl) log(`Stripped — no source URL: "${(s.headline||'').slice(0,60)}"`, 'error');
+      return hasUrl;
+    });
+
+    // 5. DUPLICATE DETECTION — strip stories with duplicate headline or URL
+    const seenHeadlines = new Set();
+    const seenUrls = new Set();
+    data.stories = data.stories.filter(s => {
+      const h = (s.headline || '').toLowerCase().trim();
+      const urlMatch = (s.sources || '').match(/href=['"]([^'"]+)['"]/);
+      const url = urlMatch ? urlMatch[1] : null;
+      if (seenHeadlines.has(h)) { log(`Stripped duplicate headline: "${h.slice(0,60)}"`, 'error'); return false; }
+      if (url && seenUrls.has(url)) { log(`Stripped duplicate URL: ${url}`, 'error'); return false; }
+      seenHeadlines.add(h);
+      if (url) seenUrls.add(url);
+      return true;
+    });
+
+    // 6. SIGNAL VALIDATION — enforce allowed values, default to Watch
+    const VALID_SIGNALS = new Set(['Atlas Validates','Agent Controls Urgency','Decision Intelligence Signal','Sales Signal','Timing Risk','Watch','Competitive']);
+    const VALID_EXEC_SIGNALS = new Set(['Governance Gap','Regulatory Opportunity','Compliance Risk','Active Threat','Emerging Risk','Industry Insight']);
+    data.stories = data.stories.map(s => ({
+      ...s,
+      signal: VALID_SIGNALS.has(s.signal) ? s.signal : 'Watch',
+      signal_exec: VALID_EXEC_SIGNALS.has(s.signal_exec) ? s.signal_exec : 'Emerging Risk',
+    }));
+
+    // 7. EVIDENCE CARDS — enforce exactly 4
+    const allCards = (data.evidenceCards || []);
+    if (allCards.length > 4) data.evidenceCards = allCards.slice(0, 4);
+    if (allCards.length < 4) {
+      // Pad with empty cards so the template always gets 4
+      while (data.evidenceCards.length < 4) {
+        data.evidenceCards.push({stat: '—', tag: 'Data', title: 'Insufficient data', body: '', primary: false});
+      }
     }
-    if (allRepos.length < 4) {
-      log(`Warning: only ${allRepos.length} repos returned — expected 4`, 'error');
-    }
+
+    // 8. ROLES — enforce exactly CRO, CISO, CTO, COO in that order with exactly 3 actions each
+    const REQUIRED_ROLES = ['CRO', 'CISO', 'CTO', 'COO'];
+    const VALID_URGENCY = new Set(['Now', 'Soon', 'Watch']);
+    const roleMap = {};
+    (data.roles || []).forEach(r => { roleMap[r.role] = r; });
+    data.roles = REQUIRED_ROLES.map(role => {
+      const existing = roleMap[role] || {role, actions: []};
+      let actions = (existing.actions || []).map(a => ({
+        ...a,
+        urgency: VALID_URGENCY.has(a.urgency) ? a.urgency : 'Watch'
+      }));
+      // Trim to 3
+      if (actions.length > 3) actions = actions.slice(0, 3);
+      // Pad to 3 if needed
+      while (actions.length < 3) actions.push({text: 'Monitor developments in this area.', urgency: 'Watch'});
+      return {...existing, actions};
+    });
+
+    // 9. governr CAPITALISATION — fix in all text fields
+    const fixG = str => (str || '').replace(/Governr/g, 'governr').replace(/GOVERNR/g, 'governr');
+    data.stories = data.stories.map(s => ({
+      ...s,
+      headline: fixG(s.headline),
+      body: fixG(s.body),
+      body_exec: fixG(s.body_exec),
+    }));
 
     log(`${data.stories.length} stories · ${(data.breaches||[]).length} breach alerts · ${(data.repos||[]).length} repos`, 'done');
     setProgress(70);
