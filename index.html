@@ -2066,6 +2066,12 @@ Rules:
       }
     }
 
+    // ── DEBUG: log raw API response before filtering ──
+    log(`API returned ${(data.stories||[]).length} stories raw`, 'active');
+    (data.stories||[]).forEach((s,i) => {
+      log(`Story ${i+1}: published="${s.published}" headline="${(s.headline||'').slice(0,50)}" hasHref=${(s.sources||'').includes('href=')}`, 'active');
+    });
+
     // ── CODE-ENFORCED RULES ──────────────────────────────
     // Rules enforced here in code cannot be ignored by the model.
 
