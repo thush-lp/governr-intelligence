@@ -1626,7 +1626,31 @@ function buildDigestKpiStrip(data) {
 }
 
 function buildExecKpiStrip(data) {
-  const kpis = data.kpis || [];
+  // Compute days to EU AI Act deadline dynamically — never use a hardcoded value
+  const daysToAct = daysUntil(new Date('2026-08-02'));
+  const breachCount = (data.breaches || []).length;
+
+  // Use API-supplied KPIs but override any days/breach values with computed ones
+  let kpis = (data.kpis || []).map(k => {
+    // Remove any KPI that duplicates the countdown header (days to EU AI Act)
+    if (k.label && k.label.toLowerCase().includes('days to eu')) return null;
+    return k;
+  }).filter(Boolean);
+
+  // Inject computed breach count KPI if not already present
+  const hasBreachKpi = kpis.some(k => k.label && k.label.toLowerCase().includes('cve'));
+  if (!hasBreachKpi && breachCount > 0) {
+    kpis.splice(1, 0, {
+      value: breachCount + ' CVE' + (breachCount !== 1 ? 's' : ''),
+      label: 'AI Tooling CVEs Today',
+      context: 'Affecting agent infrastructure',
+      warn: breachCount > 0
+    });
+  }
+
+  // Cap at 4 KPIs so the strip doesn't overflow
+  kpis = kpis.slice(0, 4);
+
   const items = kpis.map(k => `    <div class="kpi-item">
       <div class="kpi-value${k.warn ? ' warn' : k.ok ? ' ok' : ''}">${k.value}</div>
       <div class="kpi-label">${k.label}</div>
@@ -1893,6 +1917,7 @@ Return this exact structure:
   "stories": [
     {
       "recency": "TODAY",
+      "published": "YYYY-MM-DD — the exact date this story was published. THIS FIELD IS MANDATORY. If you cannot confirm the publication date, do not include the story",
       "signal": "Agent Controls Urgency",
       "headline": "string",
       "body": "3-4 sentence summary with governr commercial framing",
@@ -1931,7 +1956,7 @@ Return this exact structure:
   "kpis": [
     {"value": "2", "label": "CVSS 10.0 CVEs This Week", "context": "AI tooling: patch now", "warn": true},
     {"value": "70%+", "label": "Banks Running Agentic AI", "context": "Most without governance layer"},
-    {"value": "98", "label": "Days to EU AI Act", "context": "2 August 2026 deadline"},
+    {"value": "TBC", "label": "AI Tooling CVEs This Week", "context": "Patch priority", "warn": true},
     {"value": "5", "label": "RSAC Frameworks Shipped", "context": "None include action audit", "ok": true}
   ],
   "validates": [
@@ -2040,11 +2065,61 @@ Rules:
       }
     }
 
-    const storyCount = (data.stories||[]).length;
-    log(`Found ${storyCount} stories, ${(data.breaches||[]).length} breach alerts, ${(data.repos||[]).length} repos`, 'done');
-    if (storyCount !== 6) {
-      log(`Warning: ${storyCount} stories returned — expected exactly 6. Consider re-running.`, 'error');
+    // ── CODE-ENFORCED RULES ──────────────────────────────
+    // These run after the API responds. Prompt instructions
+    // are suggestions; these checks are not.
+
+    // 1. Strip stories older than 24 hours using published date
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 1);
+    cutoff.setHours(0, 0, 0, 0);
+
+    const allStories = (data.stories || []);
+    const freshStories = allStories.filter(s => {
+      // No published date — strip it, don't assume it's fresh
+      if (!s.published) {
+        log(`Stripped story with no published date: "${(s.headline||'').slice(0,60)}"`, 'error');
+        return false;
+      }
+      const pub = new Date(s.published);
+      // Unparseable date — strip it
+      if (isNaN(pub)) {
+        log(`Stripped story with unreadable date "${s.published}": "${(s.headline||'').slice(0,60)}"`, 'error');
+        return false;
+      }
+      // Older than 24 hours — strip it
+      if (pub < cutoff) {
+        log(`Stripped old story (${s.published}): "${(s.headline||'').slice(0,60)}"`, 'error');
+        return false;
+      }
+      return true;
+    });
+
+    const staleCount = allStories.length - freshStories.length;
+    if (staleCount > 0) {
+      log(`Removed ${staleCount} story/stories — too old or missing date`, 'error');
     }
+    data.stories = freshStories;
+
+    // 2. Enforce exactly 6 stories
+    if (data.stories.length > 6) {
+      data.stories = data.stories.slice(0, 6);
+      log(`Trimmed to 6 stories`, 'done');
+    }
+    if (data.stories.length < 6) {
+      log(`Warning: only ${data.stories.length} valid stories in last 24 hours — consider re-running`, 'error');
+    }
+
+    // 3. Enforce exactly 4 repos
+    const allRepos = (data.repos || []);
+    if (allRepos.length > 4) {
+      data.repos = allRepos.slice(0, 4);
+    }
+    if (allRepos.length < 4) {
+      log(`Warning: only ${allRepos.length} repos returned — expected 4`, 'error');
+    }
+
+    log(`${data.stories.length} stories · ${(data.breaches||[]).length} breach alerts · ${(data.repos||[]).length} repos`, 'done');
     setProgress(70);
 
     // ── STEP 2: Inject into templates ──
